@@ -12,6 +12,7 @@
         "ext-mbstring": "*",
         "beberlei/doctrineextensions": "^1.2",
         "brick/math": "^0.11.0",
+        "brick/schema": "^0.1.1",
         "composer/package-versions-deprecated": "^1.11.99.5",
         "doctrine/annotations": "1.14.3",
         "doctrine/data-fixtures": "^1.6.6",

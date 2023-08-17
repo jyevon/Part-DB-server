@@ -277,6 +277,10 @@ services:
             $search_limit: '%env(int:PROVIDER_OCTOPART_SEARCH_LIMIT)%'
             $onlyAuthorizedSellers: '%env(bool:PROVIDER_OCTOPART_ONLY_AUTHORIZED_SELLERS)%'
 
+    App\Services\InfoProviderSystem\Providers\PollinProvider:
+        arguments:
+            $enable: '&env(string:PROVIDER_POLLIN_ENABLE)%'
+
     ####################################################################################################################
     # Symfony overrides
     ####################################################################################################################
