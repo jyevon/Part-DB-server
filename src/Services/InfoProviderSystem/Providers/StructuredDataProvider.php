@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace App\Services\InfoProviderSystem\Providers;
 
+use App\Services\InfoProviderSystem\DTOs\FileDTO;
 use App\Services\InfoProviderSystem\DTOs\ParameterDTO;
 use App\Services\InfoProviderSystem\DTOs\PartDetailDTO;
 use App\Services\InfoProviderSystem\DTOs\PriceDTO;
@@ -32,13 +33,10 @@ use Symfony\Component\Intl\Currencies;
 use Brick\Schema\SchemaReader;
 use Brick\Schema\Interfaces as Schema;
 
-/**
- * This class implements the Pollin.de shop as an InfoProvider
- * //TODO
- */
 class StructuredDataProvider implements InfoProviderInterface
 {
-    const PROVIDER_ID_URL_BASE64 = 'URL_BASE64';
+    const PROVIDER_ID_URL_BASE64 = 'URL_BASE64'; //TODO long URLs still rip page layout
+    const DISTRIBUTOR_PLACEHOLDER = '<PLEASE REMOVE & SELECT ANOTHER>';
     
     private SchemaReader $reader;
     
@@ -72,15 +70,16 @@ class StructuredDataProvider implements InfoProviderInterface
      * @param string html The HTML Document to parse
      * @param string url The URL where it is from
      * @param string siteOwner Will be set to the website owner's name, if available
+     * @param array breadcrumbs Will be filled with the current pages breadcrumb path, if available
      * @return Brick\Schema\Interfaces\Product|null
      */
-    protected function getSchemaProducts(string $html, string $url, &$siteOwner = false): ?array {
+    protected function getSchemaProducts(string $html, string $url, &$siteOwner = false, &$breadcrumbs = false): ?array {
         $things = $this->reader->readHtml($html, $url);
         $products = [];
 
         foreach ($things as $thing) {
             if ($thing instanceof Schema\Product) {
-                array_push($products, $thing);
+                $products[] = $thing;
             }else if (
                 $siteOwner !== false
                 && ($thing instanceof Schema\WebSite || $thing instanceof Schema\WebPage)
@@ -88,11 +87,18 @@ class StructuredDataProvider implements InfoProviderInterface
                 $siteOwner = $this->getOrgBrandOrPersonName($thing->author)
                           ?? $this->getOrgBrandOrPersonName($thing->creator)
                           ?? $this->getOrgBrandOrPersonName($thing->copyrightHolder);
+            }else if (
+                $breadcrumbs !== false
+                && ($thing instanceof Schema\BreadcrumbList)
+            ) {
+                $breadcrumbs = [];
+                foreach($thing->itemListElement as $crumb) {
+                    $breadcrumbs[] = $crumb->name->getFirstNonEmptyStringValue();
+                }
+                //TODO reverse order if itemListOrder = Descending?
             }
         }
         if(count($products) == 0)  return null;
-
-        //TODO parse BreadcrumbList for category
 
         return $products;
     }
@@ -153,10 +159,10 @@ class StructuredDataProvider implements InfoProviderInterface
 
         if(!isset($offers[$key]))
             $offers[$key] = array();
-        array_push($offers[$key], $offer);
+        $offers[$key][]  = $offer;
     }
 
-    protected function productToDTO(Schema\Product $product, string $url = null, string $providerId = null, string $seller = null): PartDetailDTO
+    protected function productToDTO(Schema\Product $product, string $url = null, string $providerId = null, string $seller = null, array $categories = null): PartDetailDTO
     {
         $url = $product->url->getFirstNonEmptyStringValue() ?? $url;
 
@@ -238,7 +244,7 @@ class StructuredDataProvider implements InfoProviderInterface
                 $orderNo .= $key['gtin'];
 
             $orderinfos[] = new PurchaseInfoDTO(
-                distributor_name: $this->toUTF8($key['seller'] ?? $seller) ?? '<PLEASE REMOVE & SELECT ANOTHER>',
+                distributor_name: $this->toUTF8($key['seller'] ?? $seller) ?? self::DISTRIBUTOR_PLACEHOLDER,
                 order_number: $this->toUTF8($orderNo),
                 prices: $prices,
                 product_url: $this->toUTF8($key['url']),
@@ -277,17 +283,29 @@ class StructuredDataProvider implements InfoProviderInterface
         }
 
         $category = $product->category->getFirstNonEmptyStringValue();
+        if($category !== null) {
+            $category = str_replace(array('/', '>'), ' -> ', $this->toUTF8($category));
+        }else if($categories !== null) {
+            $category = join(' -> ', $categories);
+        }
         
+        $images = [];
+        foreach($product->image as $image) {
+            $images[] = new FileDTO($this->toUTF8((string) $image));
+        }
+        $preview = $images[0]->url ?? null;
+
         return new PartDetailDTO(
-            provider_key: $this->toUTF8($this->getProviderKey()),
+            provider_key: $this->getProviderKey(),
             provider_id: $this->toUTF8(($providerId === self::PROVIDER_ID_URL_BASE64) ? base64_encode($url) : ($providerId ?? $sku)),
             name: $this->toUTF8($product->name->getFirstNonEmptyStringValue() ?? ''),
             description: $this->toUTF8($product->description->getFirstNonEmptyStringValue() ?? ''),
-            category: ($category !== null) ? str_replace(' -> ', array('/', '>'), $this->toUTF8($category)) : null,
+            category: $this->toUTF8($category),
             manufacturer: $manufacturer,
             mpn: $this->toUTF8($product->mpn->getFirstNonEmptyStringValue()),
-            preview_image_url: $this->toUTF8($product->image->getFirstNonEmptyStringValue() ?? $product->logo->getFirstNonEmptyStringValue()),
+            preview_image_url: $preview ?? $this->toUTF8($product->logo->getFirstNonEmptyStringValue()),
             provider_url: $this->toUTF8($url),
+            images: $images,
             parameters: $parameters,
             vendor_infos: $orderinfos,
             mass: $mass,
@@ -299,12 +317,13 @@ class StructuredDataProvider implements InfoProviderInterface
         if(filter_var($url, FILTER_VALIDATE_URL) === false)  return array();
 
         $siteOwner = null;
-        $products = $this->getSchemaProducts($this->httpClient->request('GET', $url)->getContent(), $url, $siteOwner);
+        $breadcrumbs = null;
+        $products = $this->getSchemaProducts($this->httpClient->request('GET', $url)->getContent(), $url, $siteOwner, $breadcrumbs);
         if($products === null)  return array();
         
         $results = [];
         foreach($products as $product) {
-            array_push($results, $this->productToDTO($product, $url, self::PROVIDER_ID_URL_BASE64, $siteOwner));
+            $results[] = $this->productToDTO($product, $url, self::PROVIDER_ID_URL_BASE64, $siteOwner, $breadcrumbs);
         }
         return $results;
     }
@@ -314,11 +333,12 @@ class StructuredDataProvider implements InfoProviderInterface
         $url = base64_decode($id);
 
         $siteOwner = null;
-        $products = $this->getSchemaProducts($this->httpClient->request('GET', $url)->getContent(), $url, $siteOwner);
+        $breadcrumbs = null;
+        $products = $this->getSchemaProducts($this->httpClient->request('GET', $url)->getContent(), $url, $siteOwner, $breadcrumbs);
         if($products === null)
-            throw new Exception("parse error: product page doesn't contain a https://schema.org/Product");//TODO
+            throw new \Exception("parse error: product page doesn't contain a https://schema.org/Product");//TODO
         
-        return $this->productToDTO($products[0], $url, self::PROVIDER_ID_URL_BASE64, $siteOwner);
+        return $this->productToDTO($products[0], $url, self::PROVIDER_ID_URL_BASE64, $siteOwner, $breadcrumbs);
     }
 
     public function getCapabilities(): array

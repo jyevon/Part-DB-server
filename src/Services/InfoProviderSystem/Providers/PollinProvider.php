@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace App\Services\InfoProviderSystem\Providers;
 
+use App\Services\InfoProviderSystem\DTOs\FileDTO;
 use App\Services\InfoProviderSystem\DTOs\ParameterDTO;
 use App\Services\InfoProviderSystem\DTOs\PartDetailDTO;
 use App\Services\InfoProviderSystem\DTOs\PriceDTO;
@@ -31,6 +32,10 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Brick\Schema\SchemaReader;
 use Brick\Schema\Interfaces as Schema;
 
+/**
+ * This class implements the Pollin.de shop as an InfoProvider
+ * //TODO
+ */
 class PollinProvider extends StructuredDataProvider
 {
     private SchemaReader $reader;
@@ -62,6 +67,13 @@ class PollinProvider extends StructuredDataProvider
         return !empty($this->enable);
     }
 
+    /** equivalent of JS document.getElementsByClassName()
+     */
+    private function getElementsByClassName(\DOMDocument $doc, string $class) {
+        $finder = new \DOMXPath($doc);
+        return $finder->query("//*[contains(concat(' ', normalize-space(@class), ' '), ' " . $class . " ')]");
+    }
+
     public function searchByKeyword(string $keyword): array
     {
         $url = 'https://www.' . $this->store_id . '/search?query=' . urlencode($keyword) . '&hitsPerPage=' . $this->search_limit;
@@ -69,21 +81,21 @@ class PollinProvider extends StructuredDataProvider
         $html = $resp->getContent(); // call before getInfo() to make sure final request has finished
         $url = $resp->getInfo()['url'] ?? $url;
 
-        $products = $this->getSchemaProducts($html, $url);
+        $siteOwner = null;
+        $breadcrumbs = null;
+        $products = $this->getSchemaProducts($html, $url, $siteOwner, $breadcrumbs);
         if($products !== null)
-            return array($this->productToDTO($products[0], $url));
+            return array($this->productToDTO($products[0], $url, null, $siteOwner, $breadcrumbs));
         
         // Parse search results from html
         $results = [];
         $doc = new \DOMDocument('1.0', 'utf-8');
         @$doc->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
 
-        $finder = new \DOMXPath($doc); // equivalent of JS document.getElementsByClassName('product--sku-number')
-        $nodes = $finder->query("//*[contains(concat(' ', normalize-space(@class), ' '), ' product--sku-number ')]");
-        foreach($nodes as $node) {
+        foreach($this->getElementsByClassName($doc, 'product--sku-number') as $node) {
             $matches = array();
             if(preg_match_all('/[0-9]{6,}/', $node->textContent . $node->textContent, $matches, PREG_PATTERN_ORDER) > 0)
-                array_push($results, $this->getDetails($matches[0][count($matches[0])-1]));//TODO construct SearchResultDTO directly by extracting everything from html
+                $results[] = $this->getDetails($matches[0][count($matches[0])-1]);//TODO construct SearchResultDTO directly by extracting everything from html
         }
 
         return $results;
@@ -96,13 +108,131 @@ class PollinProvider extends StructuredDataProvider
         $html = $resp->getContent(); // call before getInfo() to make sure final request has finished
         $url = $resp->getInfo()['url'] ?? $url;
 
-        $products = $this->getSchemaProducts($html, $url);
+        $siteOwner = null;
+        $breadcrumbs = null;
+        $products = $this->getSchemaProducts($html, $url, $siteOwner, $breadcrumbs);
         if($products === null)
-            throw new Exception("parse error: product page doesn't contain a https://schema.org/Product");//TODO
+            throw new \Exception("parse error: product page doesn't contain a https://schema.org/Product");//TODO
+        
+        $oldDTO = $this->productToDTO($products[0], $url, null, $siteOwner, $breadcrumbs);
 
-        return $this->productToDTO($products[0], $url);
+        // --- supplement parsing html ---
+        $doc = new \DOMDocument('1.0', 'utf-8');
+        @$doc->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        
+        // parse & alter price information
+        $minQty = [];
+        $nodes = $this->getElementsByClassName($doc, 'block-prices--quantity');
+        for($i = 1; $i < count($nodes); $i++) {
+            $minQty[$i] = $nodes[$i]->textContent;
+        }
 
-        //TODO supplement parsing html
+        $oldOrderinfos = $oldDTO->vendor_infos;
+        $oldPrices = null;
+        $seller = 'Pollin Electronic GmbH';
+        $sku = null;
+        $prodUrl = null;
+        $currency = 'EUR';
+        if(count($oldOrderinfos) > 0) {
+            if($oldOrderinfos[0]->distributor_name !== self::DISTRIBUTOR_PLACEHOLDER)
+                $seller = $oldOrderinfos[0]->distributor_name;
+            $sku = $oldOrderinfos[0]->order_number;
+            $prodUrl = $oldOrderinfos[0]->product_url;
+
+            $oldPrices = $oldOrderinfos[0]->prices;
+            if(count($oldPrices) > 0) {
+                $currency = $oldPrices[0]->currency_iso_code ?? $currency;
+            }
+        }
+
+        $priceDTOs = [];
+        if(count($minQty) != 0) { // block-prices exist for this product
+            $minQty[0] = 1;
+
+            $prices = [];
+            $nodes = $this->getElementsByClassName($doc, 'block-prices--cell');
+            for($i = 3; $i < count($nodes); $i += 2) {
+                $matches = array();
+                if(preg_match_all('/[0-9]+,[0-9]+/', $nodes[$i]->textContent, $matches, PREG_PATTERN_ORDER) > 0)
+                    $prices[($i - 1) / 2 - 1] = str_replace(',', '.', $matches[0][0]);
+                else
+                    $prices[($i - 1) / 2 - 1] = 0;
+            }
+
+            if(count($minQty) !== count($prices))
+                throw new \Exception("parse error: number of price and minimum quantity declarations doesn't match!");//TODO
+
+            for($i = 0; $i < count($minQty); $i++) {
+                $priceDTOs[] = new PriceDTO(
+                    minimum_discount_amount: (float) $minQty[$i],
+                    price: $prices[$i],
+                    currency_iso_code: $currency,
+                );
+            }
+        }
+        
+        $ean = null;
+        foreach($this->getElementsByClassName($doc, 'entry--ean') as $node) {
+            $ean = $node->textContent;
+        }
+        if($ean !== null)  $ean = $sku . ', EAN: ' . $ean;
+        
+        $orderDTOs = [];
+        if($ean === null  && count($priceDTOs) == 0) { // no new info - use old DTO
+            $orderDTOs = $oldOrderinfos;
+        }else{
+            if(count($priceDTOs) == 0)  $priceDTOs = $oldPrices; // price info didn't change
+            
+            $orderDTOs[] = new PurchaseInfoDTO(
+                distributor_name: $seller,
+                order_number: $ean ?? $sku,
+                prices: $priceDTOs,
+                product_url: $prodUrl,
+            );
+        }
+
+        // parse & alter PartDetailDTO's properties
+        $imageDTOs = [];
+        foreach($this->getElementsByClassName($doc, 'thumbnail--link') as $thumb) {
+            $imageDTOs[] = new FileDTO($thumb->attributes->getNamedItem('href')->textContent);
+        }
+        $preview = $imageDTOs[0]->url ?? null;
+
+        $datasheetDTOs = [];
+        foreach($this->getElementsByClassName($doc, 'link--download') as $link) {
+            $attr = $link->attributes;
+            if($attr->getNamedItem('data-base64decode')->textContent !== 'true')  continue;
+
+            $href = $attr->getNamedItem('data-sbt')->textContent;
+            if($href !== null) {
+                $href = base64_decode($href);
+
+                $matches = array();
+                if(preg_match_all('/Download (.*\w)/', $link->textContent, $matches, PREG_PATTERN_ORDER) > 0)
+                    $datasheetDTOs[] = new FileDTO($href, $matches[1][0]);
+            }
+        }
+
+        return new PartDetailDTO(
+            provider_key: $this->getProviderKey(),
+            provider_id: $sku ?? $oldDTO->provider_id,
+            name: $oldDTO->name,
+            description: $oldDTO->description,
+            category: $oldDTO->category,
+            manufacturer: ($oldDTO->manufacturer !== 'Keine Angabe') ? $oldDTO->manufacturer : null,
+            mpn: $oldDTO->mpn,
+            preview_image_url: $preview ?? $oldDTO->preview_image_url,
+            manufacturing_status: $oldDTO->manufacturing_status,
+            provider_url: $prodUrl ?? $oldDTO->provider_url,
+            footprint: $oldDTO->footprint,
+            notes: $oldDTO->notes,
+            datasheets: $datasheetDTOs,
+            images: $imageDTOs,
+            parameters: $oldDTO->parameters,
+            vendor_infos: $orderDTOs,
+            mass: $oldDTO->mass,
+            manufacturer_product_url: $oldDTO->manufacturer_product_url,
+        );
     }
 
     public function getCapabilities(): array
