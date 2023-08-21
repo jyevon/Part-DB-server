@@ -124,13 +124,17 @@ Following env configuration options are available:
 * `PROVIDER_ELEMENT14_KEY`: The API key you got from Farnell (mandatory)
 * `PROVIDER_ELEMENT14_STORE_ID`: The store ID you want to use. This decides the language of results, currency and country of prices (optional, default: `de.farnell.com`, see [here](https://partner.element14.com/docs/Product_Search_API_REST__Description) for availailable values)
 
-### Pollin.de
+### Structured Data Provider
+TODO
+
+### Pollin
 TODO
 
 https://www.pollin.de/
+https://www.pollin.at/
 
 ### Custom provider
-TODO offer subclassing product schema reader
+TODO offer subclassing Structured Data Provider
 
 To create a custom provider, you have to create a new class implementing the `InfoProviderInterface` interface. As long as it is a valid Symfony service, it will be automatically loaded and can be used.
 Besides some metadata functions, you have to implement the `searchByKeyword()` and `getDetails()` functions, which do the actual API requests and return the information to Part-DB.
