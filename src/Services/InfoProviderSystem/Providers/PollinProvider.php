@@ -1,23 +1,4 @@
 <?php
-/*
- * This file is part of Part-DB (https://github.com/Part-DB/Part-DB-symfony).
- *
- *  //TODO adapt Copyright notice / remove it
- *
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU Affero General Public License as published
- *  by the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU Affero General Public License for more details.
- *
- *  You should have received a copy of the GNU Affero General Public License
- *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 declare(strict_types=1);
 
 
@@ -34,7 +15,10 @@ use Brick\Schema\Interfaces as Schema;
 
 /**
  * This class implements the Pollin.de shop as an InfoProvider
- * //TODO
+ * 
+ * It relies as little as possible on extracting data from HTML since that is likely to break whenever Pollin's website changes.
+ * Instead, it uses extracted structured data wherever possible (see StructuredDataProvider) - even attributes the current
+ * website doesn't supply because it may in the future.
  */
 class PollinProvider extends StructuredDataProvider
 {
@@ -42,9 +26,9 @@ class PollinProvider extends StructuredDataProvider
     
     public function __construct(HttpClientInterface $httpClient,
         private readonly bool $enable, private readonly int $search_limit,
-        private readonly string $store_id)
+        private readonly string $store_id, private readonly bool $add_gtin_to_orderno)
     {
-        parent::__construct($httpClient, $enable);
+        parent::__construct($httpClient, $enable, null, $add_gtin_to_orderno);
     }
 
     public function getProviderInfo(): array
@@ -53,7 +37,7 @@ class PollinProvider extends StructuredDataProvider
             'name' => 'Pollin',
             'description' => 'This provider scrapes Pollin online shop to search for parts.',
             'url' => 'https://www.pollin.de/',
-            'disabled_help' => 'Set the PROVIDER_POLLIN_ENABLET env option.'
+            'disabled_help' => 'Set the PROVIDER_POLLIN_ENABLE env option.'
         ];
     }
 
@@ -95,8 +79,10 @@ class PollinProvider extends StructuredDataProvider
         foreach($this->getElementsByClassName($doc, 'product--sku-number') as $node) {
             $matches = array();
             if(preg_match_all('/[0-9]{6,}/', $node->textContent . $node->textContent, $matches, PREG_PATTERN_ORDER) > 0)
-                $results[] = $this->getDetails($matches[0][count($matches[0])-1]);//TODO construct SearchResultDTO directly by extracting everything from html
+                $results[] = $this->getDetails($matches[0][count($matches[0])-1]);
         }
+
+        // TODO : Improvement - construct SearchResultDTO directly by extracting everything from html
 
         return $results;
     }
@@ -112,7 +98,8 @@ class PollinProvider extends StructuredDataProvider
         $breadcrumbs = null;
         $products = $this->getSchemaProducts($html, $url, $siteOwner, $breadcrumbs);
         if($products === null)
-            throw new \Exception("parse error: product page doesn't contain a https://schema.org/Product");//TODO
+            throw new \Exception("parse error: product page doesn't contain a https://schema.org/Product");
+            // TODO : Find a better way to inform the user / log for debugging (here a faulty URLs isn't the user's fault)
         
         $oldDTO = $this->productToDTO($products[0], $url, null, $siteOwner, $breadcrumbs);
 
@@ -160,7 +147,8 @@ class PollinProvider extends StructuredDataProvider
             }
 
             if(count($minQty) !== count($prices))
-                throw new \Exception("parse error: number of price and minimum quantity declarations doesn't match!");//TODO
+                throw new \Exception("parse error: number of price and minimum quantity declarations doesn't match!");
+                // TODO : Find a better way to inform the user / log for debugging
 
             for($i = 0; $i < count($minQty); $i++) {
                 $priceDTOs[] = new PriceDTO(
@@ -171,21 +159,23 @@ class PollinProvider extends StructuredDataProvider
             }
         }
         
-        $ean = null;
+        $gtin = null;
         foreach($this->getElementsByClassName($doc, 'entry--ean') as $node) {
-            $ean = $node->textContent;
+            $gtin = $node->textContent;
         }
-        if($ean !== null)  $ean = $sku . ', EAN: ' . $ean;
+        $orderNo = $sku;
+        if($this->add_gtin_to_orderno && $gtin !== null)
+            $orderNo .= ', GTIN: ' . $gtin;
         
         $orderDTOs = [];
-        if($ean === null  && count($priceDTOs) == 0) { // no new info - use old DTO
+        if($gtin === null  && count($priceDTOs) == 0) { // no new info - use old DTO
             $orderDTOs = $oldOrderinfos;
         }else{
             if(count($priceDTOs) == 0)  $priceDTOs = $oldPrices; // price info didn't change
             
             $orderDTOs[] = new PurchaseInfoDTO(
                 distributor_name: $seller,
-                order_number: $ean ?? $sku,
+                order_number: $orderNo,
                 prices: $priceDTOs,
                 product_url: $prodUrl,
             );

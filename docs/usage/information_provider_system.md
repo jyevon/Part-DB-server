@@ -124,19 +124,31 @@ Following env configuration options are available:
 * `PROVIDER_ELEMENT14_KEY`: The API key you got from Farnell (mandatory)
 * `PROVIDER_ELEMENT14_STORE_ID`: The store ID you want to use. This decides the language of results, currency and country of prices (optional, default: `de.farnell.com`, see [here](https://partner.element14.com/docs/Product_Search_API_REST__Description) for availailable values)
 
-### Structured Data Provider
-TODO
+### Structured Data
+The structured data provider parses [structured data](https://schema.org/) at any given URL for getting shopping information from a great number of websites. Many online shops include this machine-readable information to show product details or enrich their presence in search results or on comparison portals.
+However, as soon as there's a dedicated provider available for a certain website, you should prefer it as quality and extent of structured data varies widely. Also, you cannot search with this provider, unless you know a URL that will return the corresponding products as structured data. For these reasons, you may even consider contributing a provider, when there exists no dedicated provider but an API (see below).
+
+Within the structured data, this provider relies on [Product](https://schema.org/Product) objects and may supplement the information with [BreadcrumbList](https://schema.org/BreadcrumbList), [WebSite](https://schema.org/WebSite) and [WebPage](https://schema.org/WebPage) objects. You can check whether a webpage contains such object(s) by entering its URL into [Schema.org's validator](https://validator.schema.org/). Try, for instance:
+* `https://www.reichelt.de/audio-ic-1-kanal-pentawatt-5-tda-2003-p20676.html?CCOUNTRY=445&LANGUAGE=en&r=1`
+* `https://www.ebay.com/itm/185851714840`
+* `https://www.lcsc.com/product-detail/Light-Emitting-Diodes-LED_Worldsemi-WS2812D-F5_C190565.html`
+
+Following env configuration options are available:
+* `PROVIDER_STRUCDATA_ENABLE`: Set to `1` to enable this provider (mandatory, default: `0`)
+* `PROVIDER_STRUCDATA_TRUSTED_DOMAINS`: Set a filter (RegEx) for URLs that can be called (strongly recommended!, default: `0`)
+* `PROVIDER_STRUCDATA_ADD_GTIN_TO_ORDERNO`: If this is set to `1` and a GTIN (aka EAN) was found, it is appended to the `Supplier part number` field (optional, default: `1`)
 
 ### Pollin
-TODO
+The Pollin provider uses structured data (see above) and scrapes their online shop to search for parts and getting shopping information from [Pollin](https://www.pollin.de/) since there exists no API. It relies as little as possible on extracting data from HTML, but can still get disrupted by any future change to their website.
 
-https://www.pollin.de/
-https://www.pollin.at/
+Following env configuration options are available:
+* `PROVIDER_POLLIN_ENABLE`: Set to `1` to enable this provider (mandatory, default: `0`)
+* `PROVIDER_POLLIN_SEARCH_LIMIT`: The maximum number of results to return per search (optional, default: `12`). The loading time increases drastically with higher numbers because, currently, the product page of every result is called!
+* `PROVIDER_POLLIN_STORE_ID`: The store domain you want to use, e.g. `pollin.de` or `pollin.at`. This decides the language of results, currency and country of prices - although there may not even be a difference between the German and Austrian storefront. (optional, default: `pollin.de`)
+* `PROVIDER_POLLIN_ADD_GTIN_TO_ORDERNO`: If this is set to `1` and a GTIN (aka EAN) was found, it is appended to the `Supplier part number` field (optional, default: `1`)
 
 ### Custom provider
-TODO offer subclassing Structured Data Provider
-
-To create a custom provider, you have to create a new class implementing the `InfoProviderInterface` interface. As long as it is a valid Symfony service, it will be automatically loaded and can be used.
+To create a custom provider, you have to create a new class implementing the `InfoProviderInterface` interface. If you want to use structured data (see above), you can also create a subclass of `StructuredDataProvider`. As long as it is a valid Symfony service, it will be automatically loaded and can be used.
 Besides some metadata functions, you have to implement the `searchByKeyword()` and `getDetails()` functions, which do the actual API requests and return the information to Part-DB.
 See the existing providers for examples.
 If you created a new provider, feel free to create a pull request to add it to the Part-DB core.

@@ -1,23 +1,4 @@
 <?php
-/*
- * This file is part of Part-DB (https://github.com/Part-DB/Part-DB-symfony).
- *
- *  //TODO adapt Copyright notice / remove it
- *
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU Affero General Public License as published
- *  by the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU Affero General Public License for more details.
- *
- *  You should have received a copy of the GNU Affero General Public License
- *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 declare(strict_types=1);
 
 
@@ -35,12 +16,14 @@ use Brick\Schema\Interfaces as Schema;
 
 class StructuredDataProvider implements InfoProviderInterface
 {
-    const PROVIDER_ID_URL_BASE64 = 'URL_BASE64'; //TODO long URLs still rip page layout
+    const PROVIDER_ID_URL_BASE64 = 'URL_BASE64'; // TODO : long URLs still mess with page layout
     const DISTRIBUTOR_PLACEHOLDER = '<PLEASE REMOVE & SELECT ANOTHER>';
-    
+
     private SchemaReader $reader;
     
-    public function __construct(protected readonly HttpClientInterface $httpClient, private readonly bool $enable)
+    public function __construct(protected readonly HttpClientInterface $httpClient,
+        private readonly bool $enable, private readonly ?string $trusted_domains,
+        private readonly bool $add_gtin_to_orderno)
     {
         $this->reader = SchemaReader::forAllFormats();
     }
@@ -95,7 +78,7 @@ class StructuredDataProvider implements InfoProviderInterface
                 foreach($thing->itemListElement as $crumb) {
                     $breadcrumbs[] = $crumb->name->getFirstNonEmptyStringValue();
                 }
-                //TODO reverse order if itemListOrder = Descending?
+                // TODO : Improvement - reverse order if itemListOrder = Descending (never encountered until now)
             }
         }
         if(count($products) == 0)  return null;
@@ -170,33 +153,9 @@ class StructuredDataProvider implements InfoProviderInterface
         $sku = $this->getSKU($product, $gtin);
 
         //Parse the specifications
-        //TODO color, depth, hasMeasurement, height, material, pattern, size, width
         $parameters = [];
-        /*$mass = null;
-        $package = null;
-        $pinCount = null;
-        $mStatus = null;
-        foreach ($part['specs'] as $spec) {
-
-            //If we encounter the mass spec, we save it for later
-            if ($spec['attribute']['shortname'] === "weight") {
-                $mass = (float) $spec['siValue'];
-            } else if ($spec['attribute']['shortname'] === "case_package") { //Package
-                $package = $spec['value'];
-            } else if ($spec['attribute']['shortname'] === "numberofpins") { //Pin Count
-                $pinCount = $spec['value'];
-            } else if ($spec['attribute']['shortname'] === "lifecyclestatus") { //LifeCycleStatus
-                $mStatus = $this->mapLifeCycleStatus($spec['value']);
-            }
-
-            $parameters[] = new ParameterDTO(//don't forget $this->toUTF8() on strings!
-                name: $spec['attribute']['name'],
-                value_text: $spec['valueType'] === 'text' ? $spec['value'] : null,
-                value_typ: in_array($spec['valueType'], ['float', 'integer'], true) ? (float) $spec['value'] : null,
-                unit: $spec['valueType'] === 'text' ? null : $spec['units'],
-                group: $spec['attribute']['group'],
-            );
-        }*/
+        /* TODO : Improvement - parse parameters (never encountered until now)
+        relevant attributes: color, depth, hasMeasurement, height, material, pattern, size, width */
 
         //Parse the offers
         $offers = [];
@@ -238,10 +197,12 @@ class StructuredDataProvider implements InfoProviderInterface
             }
 
             $orderNo = $key['sku'] ?? '';
-            if(!empty($orderNo) && $key['gtin'] !== null)
-                $orderNo .= ', EAN: ';
-            if($key['gtin'] !== null)
-                $orderNo .= $key['gtin'];
+            if($this->add_gtin_to_orderno) {
+                if($orderNo !== $gtin && $key['gtin'] !== null)
+                    $orderNo .= ', ';
+                if($key['gtin'] !== null)
+                    $orderNo .= 'GTIN: ' . $key['gtin'];
+            }
 
             $orderinfos[] = new PurchaseInfoDTO(
                 distributor_name: $this->toUTF8($key['seller'] ?? $seller) ?? self::DISTRIBUTOR_PLACEHOLDER,
@@ -312,9 +273,23 @@ class StructuredDataProvider implements InfoProviderInterface
         );
     }
 
+    private function isDomainTrusted(string $url) : bool {
+        if(filter_var($url, FILTER_VALIDATE_URL) === false)  return false;
+
+        if(!empty($this->trusted_domains)) {
+            $host = parse_url($url, PHP_URL_HOST);
+
+            if($host === null)  return false;
+
+            if(preg_match('/' . $this->trusted_domains . '/', $host) !== 1)  return false;
+        }
+
+        return true;
+    }
+
     public function searchByKeyword(string $url): array
     {
-        if(filter_var($url, FILTER_VALIDATE_URL) === false)  return array();
+        if(!$this->isDomainTrusted($url))  return array();
 
         $siteOwner = null;
         $breadcrumbs = null;
@@ -331,12 +306,16 @@ class StructuredDataProvider implements InfoProviderInterface
     public function getDetails(string $id): PartDetailDTO
     {
         $url = base64_decode($id);
+        if(!$this->isDomainTrusted($url))
+            throw new \Exception("Domain is not trusted: " . $url);
+            // TODO : Find a better way to inform the user
 
         $siteOwner = null;
         $breadcrumbs = null;
         $products = $this->getSchemaProducts($this->httpClient->request('GET', $url)->getContent(), $url, $siteOwner, $breadcrumbs);
         if($products === null)
-            throw new \Exception("parse error: product page doesn't contain a https://schema.org/Product");//TODO
+            throw new \Exception("parse error: product page doesn't contain a https://schema.org/Product");
+            // TODO : Find a better way to inform the user / log for debugging
         
         return $this->productToDTO($products[0], $url, self::PROVIDER_ID_URL_BASE64, $siteOwner, $breadcrumbs);
     }
