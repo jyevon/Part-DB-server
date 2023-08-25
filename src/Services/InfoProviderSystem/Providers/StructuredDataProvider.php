@@ -9,15 +9,22 @@ use App\Services\InfoProviderSystem\DTOs\ParameterDTO;
 use App\Services\InfoProviderSystem\DTOs\PartDetailDTO;
 use App\Services\InfoProviderSystem\DTOs\PriceDTO;
 use App\Services\InfoProviderSystem\DTOs\PurchaseInfoDTO;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
-use Symfony\Component\Intl\Currencies;
 use Brick\Schema\SchemaReader;
 use Brick\Schema\Interfaces as Schema;
+use Symfony\Component\Intl\Currencies;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
+/**
+ * This class implements structured data (https://schema.org/) at any given URL as an InfoProvider
+ * 
+ * The quality of the extracted data varies widely across websites. Schema.org specifies a lot of similar attributes,
+ * most attributes can be of different data types, and some websites even violate this.
+ * As a result, there's lots of fallback code and there are probably edge cases where it still fails.
+ */
 class StructuredDataProvider implements InfoProviderInterface
 {
-    const PROVIDER_ID_URL_BASE64 = 'URL_BASE64'; // TODO : long URLs still mess with page layout
-    const DISTRIBUTOR_PLACEHOLDER = '<PLEASE REMOVE & SELECT ANOTHER>';
+    public const PROVIDER_ID_URL_BASE64 = 'URL_BASE64'; // TODO : long URLs still mess with page layout
+    public const DISTRIBUTOR_PLACEHOLDER = '<PLEASE REMOVE & SELECT ANOTHER>';
 
     private SchemaReader $reader;
     
@@ -38,6 +45,15 @@ class StructuredDataProvider implements InfoProviderInterface
         ];
     }
 
+    public function getCapabilities(): array
+    {
+        return [
+            ProviderCapabilities::BASIC,
+            ProviderCapabilities::PICTURE,
+            ProviderCapabilities::PRICE,
+        ];
+    }
+
     public function getProviderKey(): string
     {
         return 'strucdata';
@@ -49,16 +65,31 @@ class StructuredDataProvider implements InfoProviderInterface
     }
 
     /**
-     * Get https://schema.org/Product object form HTML, if any
-     * @param string html The HTML Document to parse
-     * @param string url The URL where it is from
-     * @param string siteOwner Will be set to the website owner's name, if available
-     * @param array breadcrumbs Will be filled with the current pages breadcrumb path, if available
-     * @return Brick\Schema\Interfaces\Product|null
+     * Make a HTTP request
+     * @param string &$url  URL to request, will be updated to target on redirects
+     * @return ?string
      */
-    protected function getSchemaProducts(string $html, string $url, &$siteOwner = false, &$breadcrumbs = false): ?array {
-        $things = $this->reader->readHtml($html, $url);
+    protected function getResponse(string &$url): ?string {
+        $resp = $this->httpClient->request('GET', $url);
+        $content = $resp->getContent(); // call before getInfo() to make sure final request has finished
+        $url = $resp->getInfo()['url'] ?? $url; // get URL after possible redirects
+
+        return $content;
+    }
+
+    /**
+     * Get https://schema.org/Product object form HTML, if any
+     * @param string $html The HTML Document to parse
+     * @param string $url The URL where it is from
+     * @param string $siteOwner Will be set to the website owner's name or current domain, if available
+     * @param array $breadcrumbs Will be filled with the current pages breadcrumb path, if available
+     * @return Brick\Schema\Interfaces\Product[]
+     */
+    protected function getSchemaProducts(string $html, string $url, &$siteOwner = false, &$breadcrumbs = false): array {
+        $things = $this->reader->readHtml($html, $url); // get objects
         $products = [];
+
+        if($siteOwner !== false)  $siteOwner = 'TMP_MARKER';
 
         foreach ($things as $thing) {
             if ($thing instanceof Schema\Product) {
@@ -81,12 +112,21 @@ class StructuredDataProvider implements InfoProviderInterface
                 // TODO : Improvement - reverse order if itemListOrder = Descending (never encountered until now)
             }
         }
-        if(count($products) == 0)  return null;
+
+        if($siteOwner === 'TMP_MARKER') { // still to set
+            $host = parse_url($url, PHP_URL_HOST);
+            $siteOwner = ($host) ? $host : null;
+        }
 
         return $products;
     }
 
-    private function toUTF8(?string $str) {
+    /**
+     * Converts a string to UTF-8 encoding or fixes broken UTF-8 encoding
+     * @param ?string  $str
+     * @return ?string  converted string or null, if input was null
+     */
+    protected function toUTF8(?string $str): ?string {
         if($str === null)  return null;
 
         // pollin.de's encoding is broken otherwise
@@ -94,19 +134,42 @@ class StructuredDataProvider implements InfoProviderInterface
         return mb_convert_encoding($str, 'UTF-8', mb_list_encodings());
     }
 
-    private function getGTIN(Schema\Product|Schema\Offer $product) {
+    /**
+     * Gets GTIN (aka EAN) from schema object
+     * @param Brick\Schema\Product|Brick\Schema\Offer $product
+     * @return ?string  GTIN, or null if missing
+     */
+    private function getGTIN(Schema\Product|Schema\Offer $product): ?string {
         return $product->gtin14->getFirstNonEmptyStringValue() ?? $product->gtin13->getFirstNonEmptyStringValue()
             ?? $product->gtin12->getFirstNonEmptyStringValue() ?? $product->gtin8->getFirstNonEmptyStringValue();
     }
-    private function getSKU(Schema\Product|Schema\Offer $product, ?string $gtin) {
+
+    /**
+     * Gets SKU from schema object
+     * @param Brick\Schema\Product|Brick\Schema\Offer $product
+     * @return ?string  SKU, or null if missing
+     */
+    private function getSKU(Schema\Product|Schema\Offer $product): ?string {
         return $product->sku->getFirstNonEmptyStringValue()
             ?? ($product instanceof Schema\Product ? $product->productID->getFirstNonEmptyStringValue() : null)
-            ?? $product->identifier->getFirstNonEmptyStringValue() ?? $gtin;
+            ?? $product->identifier->getFirstNonEmptyStringValue();
     }
-    private function getOrgName(Schema\Organization $org) {
+
+    /**
+     * Gets name from an Organization schema object
+     * @param Brick\Schema\Organization $org
+     * @return ?string
+     */
+    private function getOrgName(Schema\Organization $org): ?string {
         return $org->name->getFirstNonEmptyStringValue() ?? $org->legalName->getFirstNonEmptyStringValue();
     }
-    private function getOrgBrandOrPersonName($orgBrandOrPerson) {
+
+    /**
+     * Gets name from schema object
+     * @param Organization|Brand|Person|SchemaTypeList<Text> $orgBrandOrPerson
+     * @return ?string
+     */
+    private function getOrgBrandOrPersonName($orgBrandOrPerson): ?string {
         if($orgBrandOrPerson instanceof Schema\Organization) {
             return $this->getOrgName($orgBrandOrPerson);
         }else if($orgBrandOrPerson instanceof Schema\Brand) {
@@ -125,97 +188,64 @@ class StructuredDataProvider implements InfoProviderInterface
             return $orgBrandOrPerson->getFirstNonEmptyStringValue();
         }
     }
-    private function getOfferKey(Schema\Offer $offer, ?array $parentKey) {
+
+    /**
+     * Creates an associative array of properties defining this offer (for grouping multiple prices)
+     * @param Brick\Schema\Offer $offer
+     * @param ?array $parentKey  individual properties will fall back to these if they don't exist in the current object
+     * @return array
+     */
+    private function getOfferKey(Schema\Offer $offer, ?array $parentKey): array {
         $gtin = $this->getGTIN($offer);
-        $sku = $this->getSKU($offer, $gtin);
+        $sku = $this->getSKU($offer);
         
-        return array(
+        return [
             'seller' => $this->getOrgBrandOrPersonName($offer->seller) ?? $this->getOrgBrandOrPersonName($offer->offeredBy)
                      ?? $parentKey['seller'] ?? null,
-            'sku' => $sku ?? $parentKey['sku'] ?? null,
+            'sku' => $sku ?? $parentKey['sku'] ?? $gtin,
             'gtin' => $gtin ?? $parentKey['gtin'] ?? null,
             'url' => $offer->url->getFirstNonEmptyStringValue() ?? $parentKey['url'] ?? null
-        );
+        ];
     }
+
+    /**
+     * Appends Offer schema object to array containing arrays of alike offers (price difference only)
+     * @param array &$offers
+     * @param Brick\Schema\Offer $offer
+     * @param array $parentKey  associative array of properties defining this offer's parent. Properties will fall back to these if they don't exist in the current object
+     * @return void
+     */
     private function pushOffer(array &$offers, Schema\Offer $offer, array $parentKey) {
         $key = serialize($this->getOfferKey($offer, $parentKey));
 
         if(!isset($offers[$key]))
-            $offers[$key] = array();
+            $offers[$key] = [];
         $offers[$key][]  = $offer;
     }
 
+    /**
+     * Creates DTO from Product schema object - aka the actual parsing
+     * @param Brick\Schema\Product $product
+     * @param ?string $url  The URL where it is from, fallback for product URL
+     * @param ?string $providerId  Override for provider_id, null means use SKU(/GTIN). PROVIDER_ID_URL_BASE64 means base64-encoded product URL
+     * @param ?string $seller  Fallback for distributor_name, or null
+     * @param ?array $categories  Fallback for category hierarchy ['top level', '...', 'actual category']
+     * @return PartDetailDTO  distributor_name falls back to DISTRIBUTOR_PLACEHOLDER if missing - replace in result if necessary
+     */
     protected function productToDTO(Schema\Product $product, string $url = null, string $providerId = null, string $seller = null, array $categories = null): PartDetailDTO
     {
         $url = $product->url->getFirstNonEmptyStringValue() ?? $url;
 
         $gtin = $this->getGTIN($product);
-        $sku = $this->getSKU($product, $gtin);
+        $sku = $this->getSKU($product) ?? $gtin;
 
         //Parse the specifications
         $parameters = [];
         /* TODO : Improvement - parse parameters (never encountered until now)
         relevant attributes: color, depth, hasMeasurement, height, material, pattern, size, width */
 
-        //Parse the offers
-        $offers = [];
-        $orderinfos = [];
-        $parentKey = array(
-            'seller' => null,
-            'sku' => $sku,
-            'gtin' => $gtin,
-            'url' => $url
-        );
-        foreach ($product->offers as $offer) {
-            if ($offer instanceof Schema\AggregateOffer) {
-                $key = $this->getOfferKey($offer, $parentKey);
-                
-                foreach ($offer->offers as $suboffer) {
-                    $this->pushOffer($offers, $suboffer, $key);
-                }
-            }else if ($offer instanceof Schema\Offer) {
-                $this->pushOffer($offers, $offer, $parentKey);
-            }
-        }
-        foreach ($offers as $key => $offerGroup) {
-            $key = unserialize($key);
-            $prices = [];
-            foreach ($offerGroup as $offer) {
-                $price = $offer->price->getFirstValue();
-                $priceCurrency = $offer->priceCurrency->toString();
-                $quantity = $offer->eligibleQuantity->getFirstValue();
-                
-                if (is_string($price)) {
-                    if($priceCurrency == "US$")  $priceCurrency = 'USD'; // for lcsc.com (iso codes are seemingly overrated ...)
-
-                    $prices[] = new PriceDTO(
-                        minimum_discount_amount: ($quantity !== null) ? $quantity->minValue->getFirstNonEmptyStringValue() : 0,
-                        price: str_replace(',', '', $this->toUTF8((string) $price) ?? '0'),
-                        currency_iso_code: Currencies::exists($priceCurrency) ? $priceCurrency : null,
-                    );
-                }
-            }
-
-            $orderNo = $key['sku'] ?? '';
-            if($this->add_gtin_to_orderno) {
-                if($orderNo !== $gtin && $key['gtin'] !== null)
-                    $orderNo .= ', ';
-                if($key['gtin'] !== null)
-                    $orderNo .= 'GTIN: ' . $key['gtin'];
-            }
-
-            $orderinfos[] = new PurchaseInfoDTO(
-                distributor_name: $this->toUTF8($key['seller'] ?? $seller) ?? self::DISTRIBUTOR_PLACEHOLDER,
-                order_number: $this->toUTF8($orderNo),
-                prices: $prices,
-                product_url: $this->toUTF8($key['url']),
-            );
-        }
-
-        $manufacturer = $this->getOrgBrandOrPersonName($product->manufacturer) ?? $this->getOrgBrandOrPersonName($product->brand);
-
         $mass = null;
-        if($product->weight instanceof Schema\QuantitativeValue) {
+        if($product->weight instanceof Schema\QuantitativeValue) { // not tested!
             $tmp = $product->weight->value->getFirstNonEmptyStringValue();
             if(is_numeric($tmp)) {
                 switch ($product->weight->unitCode->getFirstNonEmptyStringValue()) {
@@ -243,26 +273,86 @@ class StructuredDataProvider implements InfoProviderInterface
             }
         }
 
+        //Parse the offers
+        $offers = [];
+        $orderinfos = [];
+        $parentKey = [ // fallback properties for individual offers
+            'seller' => null,
+            'sku' => $sku,
+            'gtin' => $gtin,
+            'url' => $url
+        ];
+        foreach ($product->offers as $offer) {
+            if ($offer instanceof Schema\AggregateOffer) { // contains multiple offers
+                $key = $this->getOfferKey($offer, $parentKey);
+                
+                foreach ($offer->offers as $suboffer) {
+                    $this->pushOffer($offers, $suboffer, $key);
+                }
+            }else if ($offer instanceof Schema\Offer) {
+                $this->pushOffer($offers, $offer, $parentKey);
+            }
+        }
+        foreach ($offers as $key => $offerGroup) {
+            $key = unserialize($key);
+            $prices = [];
+            foreach ($offerGroup as $offer) { // parse prices
+                $price = $offer->price->getFirstValue();
+                $priceCurrency = $offer->priceCurrency->toString();
+                $quantity = $offer->eligibleQuantity->getFirstValue();
+                
+                if (is_string($price)) {
+                    if($priceCurrency == "US$")  $priceCurrency = 'USD'; // for lcsc.com (iso codes are seemingly overrated ...)
+
+                    $prices[] = new PriceDTO(
+                        minimum_discount_amount: ($quantity !== null) ? $quantity->minValue->getFirstNonEmptyStringValue() : 1,
+                        price: str_replace(',', '', $this->toUTF8((string) $price) ?? '0'),
+                        currency_iso_code: Currencies::exists($priceCurrency) ? $priceCurrency : null,
+                    );
+                }
+            }
+
+            // combine prices in offer
+            $orderNo = $key['sku'] ?? '';
+            if($this->add_gtin_to_orderno) {
+                if($orderNo !== $gtin && $key['gtin'] !== null)
+                    $orderNo .= ', ';
+                if($key['gtin'] !== null)
+                    $orderNo .= 'GTIN: ' . $key['gtin'];
+            }
+
+            $orderinfos[] = new PurchaseInfoDTO(
+                distributor_name: $this->toUTF8($key['seller'] ?? $seller) ?? self::DISTRIBUTOR_PLACEHOLDER,
+                order_number: $this->toUTF8($orderNo),
+                prices: $prices,
+                product_url: $this->toUTF8($key['url']),
+            );
+        }
+
+
+        //Built the category full path
         $category = $product->category->getFirstNonEmptyStringValue();
         if($category !== null) {
-            $category = str_replace(array('/', '>'), ' -> ', $this->toUTF8($category));
+            $category = str_replace(['/', '>'], ' -> ', $this->toUTF8($category));
         }else if($categories !== null) {
             $category = join(' -> ', $categories);
         }
         
+        //Parse images
         $images = [];
         foreach($product->image as $image) {
             $images[] = new FileDTO($this->toUTF8((string) $image));
         }
         $preview = $images[0]->url ?? null;
 
+        //Create DTO
         return new PartDetailDTO(
             provider_key: $this->getProviderKey(),
             provider_id: $this->toUTF8(($providerId === self::PROVIDER_ID_URL_BASE64) ? base64_encode($url) : ($providerId ?? $sku)),
-            name: $this->toUTF8($product->name->getFirstNonEmptyStringValue() ?? ''),
-            description: $this->toUTF8($product->description->getFirstNonEmptyStringValue() ?? ''),
+            name: $this->toUTF8($product->name->getFirstNonEmptyStringValue()) ?? '',
+            description: $this->toUTF8($product->description->getFirstNonEmptyStringValue()) ?? '',
             category: $this->toUTF8($category),
-            manufacturer: $manufacturer,
+            manufacturer: $this->getOrgBrandOrPersonName($product->manufacturer) ?? $this->getOrgBrandOrPersonName($product->brand),
             mpn: $this->toUTF8($product->mpn->getFirstNonEmptyStringValue()),
             preview_image_url: $preview ?? $this->toUTF8($product->logo->getFirstNonEmptyStringValue()),
             provider_url: $this->toUTF8($url),
@@ -273,7 +363,12 @@ class StructuredDataProvider implements InfoProviderInterface
         );
     }
 
-    private function isDomainTrusted(string $url) : bool {
+    /**
+     * Checks if URL is valid and host against trusted domain RegEx
+     * @param string $url
+     * @return bool  false if URL is malformed or host is not trusted, true otherwise
+     */
+    private function isDomainTrusted(string $url): bool {
         if(filter_var($url, FILTER_VALIDATE_URL) === false)  return false;
 
         if(!empty($this->trusted_domains)) {
@@ -287,14 +382,20 @@ class StructuredDataProvider implements InfoProviderInterface
         return true;
     }
 
+    /**
+     * Searches for Products at an URL
+     * @param string $url
+     * @return array  results or empty array if URL is malformed or host not trusted
+     */
     public function searchByKeyword(string $url): array
     {
-        if(!$this->isDomainTrusted($url))  return array();
+        if(!$this->isDomainTrusted($url))  return [];
 
         $siteOwner = null;
         $breadcrumbs = null;
-        $products = $this->getSchemaProducts($this->httpClient->request('GET', $url)->getContent(), $url, $siteOwner, $breadcrumbs);
-        if($products === null)  return array();
+        $tmp = $url; // do not regard redirects yet as they may prolong the URL
+        // TODO : change that when there's a solution for long URLs
+        $products = $this->getSchemaProducts($this->getResponse($tmp), $url, $siteOwner, $breadcrumbs);
         
         $results = [];
         foreach($products as $product) {
@@ -306,26 +407,17 @@ class StructuredDataProvider implements InfoProviderInterface
     public function getDetails(string $id): PartDetailDTO
     {
         $url = base64_decode($id);
-        if(!$this->isDomainTrusted($url))
+        if(!$this->isDomainTrusted($url)) // shouldn't show up in search in the first place
             throw new \Exception("Domain is not trusted: " . $url);
             // TODO : Find a better way to inform the user
 
         $siteOwner = null;
         $breadcrumbs = null;
-        $products = $this->getSchemaProducts($this->httpClient->request('GET', $url)->getContent(), $url, $siteOwner, $breadcrumbs);
-        if($products === null)
+        $products = $this->getSchemaProducts($this->getResponse($url), $url, $siteOwner, $breadcrumbs);
+        if(count($products) == 0)
             throw new \Exception("parse error: product page doesn't contain a https://schema.org/Product");
-            // TODO : Find a better way to inform the user / log for debugging
+            // TODO : Find a better way to inform the user / log for debugging (here a faulty URLs is the user's fault)
         
         return $this->productToDTO($products[0], $url, self::PROVIDER_ID_URL_BASE64, $siteOwner, $breadcrumbs);
-    }
-
-    public function getCapabilities(): array
-    {
-        return [
-            ProviderCapabilities::BASIC,
-            ProviderCapabilities::PICTURE,
-            ProviderCapabilities::PRICE,
-        ];
     }
 }

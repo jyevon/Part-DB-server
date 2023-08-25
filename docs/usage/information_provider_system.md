@@ -130,6 +130,7 @@ However, as soon as there's a dedicated provider available for a certain website
 
 Within the structured data, this provider relies on [Product](https://schema.org/Product) objects and may supplement the information with [BreadcrumbList](https://schema.org/BreadcrumbList), [WebSite](https://schema.org/WebSite) and [WebPage](https://schema.org/WebPage) objects. You can check whether a webpage contains such object(s) by entering its URL into [Schema.org's validator](https://validator.schema.org/). Try, for instance:
 * `https://www.reichelt.de/audio-ic-1-kanal-pentawatt-5-tda-2003-p20676.html?CCOUNTRY=445&LANGUAGE=en&r=1`
+* `https://www.voelkner.de/products/142706`
 * `https://www.ebay.com/itm/185851714840`
 * `https://www.lcsc.com/product-detail/Light-Emitting-Diodes-LED_Worldsemi-WS2812D-F5_C190565.html`
 
