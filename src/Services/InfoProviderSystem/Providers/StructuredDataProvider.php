@@ -69,7 +69,8 @@ class StructuredDataProvider implements InfoProviderInterface
      * @param string &$url  URL to request, will be updated to target on redirects
      * @return ?string
      */
-    protected function getResponse(string &$url): ?string {
+    protected function getResponse(string &$url): ?string
+    {
         $resp = $this->httpClient->request('GET', $url);
         $content = $resp->getContent(); // call before getInfo() to make sure final request has finished
         $url = $resp->getInfo()['url'] ?? $url; // get URL after possible redirects
@@ -85,7 +86,8 @@ class StructuredDataProvider implements InfoProviderInterface
      * @param array $breadcrumbs Will be filled with the current pages breadcrumb path, if available
      * @return Brick\Schema\Interfaces\Product[]
      */
-    protected function getSchemaProducts(string $html, string $url, &$siteOwner = false, &$breadcrumbs = false): array {
+    protected function getSchemaProducts(string $html, string $url, &$siteOwner = false, &$breadcrumbs = false): array
+    {
         $things = $this->reader->readHtml($html, $url); // get objects
         $products = [];
 
@@ -122,24 +124,12 @@ class StructuredDataProvider implements InfoProviderInterface
     }
 
     /**
-     * Converts a string to UTF-8 encoding or fixes broken UTF-8 encoding
-     * @param ?string  $str
-     * @return ?string  converted string or null, if input was null
-     */
-    protected function toUTF8(?string $str): ?string {
-        if($str === null)  return null;
-
-        // pollin.de's encoding is broken otherwise
-        $str = mb_convert_encoding($str, 'ISO-8859-1', mb_list_encodings());
-        return mb_convert_encoding($str, 'UTF-8', mb_list_encodings());
-    }
-
-    /**
      * Gets GTIN (aka EAN) from schema object
      * @param Brick\Schema\Product|Brick\Schema\Offer $product
      * @return ?string  GTIN, or null if missing
      */
-    private function getGTIN(Schema\Product|Schema\Offer $product): ?string {
+    private function getGTIN(Schema\Product|Schema\Offer $product): ?string
+    {
         return $product->gtin14->getFirstNonEmptyStringValue() ?? $product->gtin13->getFirstNonEmptyStringValue()
             ?? $product->gtin12->getFirstNonEmptyStringValue() ?? $product->gtin8->getFirstNonEmptyStringValue();
     }
@@ -149,7 +139,8 @@ class StructuredDataProvider implements InfoProviderInterface
      * @param Brick\Schema\Product|Brick\Schema\Offer $product
      * @return ?string  SKU, or null if missing
      */
-    private function getSKU(Schema\Product|Schema\Offer $product): ?string {
+    private function getSKU(Schema\Product|Schema\Offer $product): ?string
+    {
         return $product->sku->getFirstNonEmptyStringValue()
             ?? ($product instanceof Schema\Product ? $product->productID->getFirstNonEmptyStringValue() : null)
             ?? $product->identifier->getFirstNonEmptyStringValue();
@@ -160,7 +151,8 @@ class StructuredDataProvider implements InfoProviderInterface
      * @param Brick\Schema\Organization $org
      * @return ?string
      */
-    private function getOrgName(Schema\Organization $org): ?string {
+    private function getOrgName(Schema\Organization $org): ?string
+    {
         return $org->name->getFirstNonEmptyStringValue() ?? $org->legalName->getFirstNonEmptyStringValue();
     }
 
@@ -169,7 +161,8 @@ class StructuredDataProvider implements InfoProviderInterface
      * @param Organization|Brand|Person|SchemaTypeList<Text> $orgBrandOrPerson
      * @return ?string
      */
-    private function getOrgBrandOrPersonName($orgBrandOrPerson): ?string {
+    private function getOrgBrandOrPersonName($orgBrandOrPerson): ?string
+    {
         if($orgBrandOrPerson instanceof Schema\Organization) {
             return $this->getOrgName($orgBrandOrPerson);
         }else if($orgBrandOrPerson instanceof Schema\Brand) {
@@ -195,7 +188,8 @@ class StructuredDataProvider implements InfoProviderInterface
      * @param ?array $parentKey  individual properties will fall back to these if they don't exist in the current object
      * @return array
      */
-    private function getOfferKey(Schema\Offer $offer, ?array $parentKey): array {
+    private function getOfferKey(Schema\Offer $offer, ?array $parentKey): array
+    {
         $gtin = $this->getGTIN($offer);
         $sku = $this->getSKU($offer);
         
@@ -215,7 +209,8 @@ class StructuredDataProvider implements InfoProviderInterface
      * @param array $parentKey  associative array of properties defining this offer's parent. Properties will fall back to these if they don't exist in the current object
      * @return void
      */
-    private function pushOffer(array &$offers, Schema\Offer $offer, array $parentKey) {
+    private function pushOffer(array &$offers, Schema\Offer $offer, array $parentKey)
+    {
         $key = serialize($this->getOfferKey($offer, $parentKey));
 
         if(!isset($offers[$key]))
@@ -232,7 +227,10 @@ class StructuredDataProvider implements InfoProviderInterface
      * @param ?array $categories  Fallback for category hierarchy ['top level', '...', 'actual category']
      * @return PartDetailDTO  distributor_name falls back to DISTRIBUTOR_PLACEHOLDER if missing - replace in result if necessary
      */
-    protected function productToDTO(Schema\Product $product, string $url = null, string $providerId = null, string $seller = null, array $categories = null): PartDetailDTO
+    protected function productToDTO(Schema\Product $product,
+        string $url = null, string $providerId = null,
+        string $seller = null, array $categories = null,
+        bool $includesTax = true): PartDetailDTO
     {
         $url = $product->url->getFirstNonEmptyStringValue() ?? $url;
 
@@ -306,8 +304,9 @@ class StructuredDataProvider implements InfoProviderInterface
 
                     $prices[] = new PriceDTO(
                         minimum_discount_amount: ($quantity !== null) ? $quantity->minValue->getFirstNonEmptyStringValue() : 1,
-                        price: str_replace(',', '', $this->toUTF8((string) $price) ?? '0'),
+                        price: str_replace(',', '', (string) $price) ?? '0',
                         currency_iso_code: Currencies::exists($priceCurrency) ? $priceCurrency : null,
+                        includes_tax: $includesTax,
                     );
                 }
             }
@@ -322,10 +321,10 @@ class StructuredDataProvider implements InfoProviderInterface
             }
 
             $orderinfos[] = new PurchaseInfoDTO(
-                distributor_name: $this->toUTF8($key['seller'] ?? $seller) ?? self::DISTRIBUTOR_PLACEHOLDER,
-                order_number: $this->toUTF8($orderNo),
+                distributor_name: $key['seller'] ?? $seller ?? self::DISTRIBUTOR_PLACEHOLDER,
+                order_number: $orderNo,
                 prices: $prices,
-                product_url: $this->toUTF8($key['url']),
+                product_url: $key['url'],
             );
         }
 
@@ -333,7 +332,7 @@ class StructuredDataProvider implements InfoProviderInterface
         //Built the category full path
         $category = $product->category->getFirstNonEmptyStringValue();
         if($category !== null) {
-            $category = str_replace(['/', '>'], ' -> ', $this->toUTF8($category));
+            $category = str_replace(['/', '>'], ' -> ', $category);
         }else if($categories !== null) {
             $category = join(' -> ', $categories);
         }
@@ -341,21 +340,21 @@ class StructuredDataProvider implements InfoProviderInterface
         //Parse images
         $images = [];
         foreach($product->image as $image) {
-            $images[] = new FileDTO($this->toUTF8((string) $image));
+            $images[] = new FileDTO((string) $image);
         }
         $preview = $images[0]->url ?? null;
 
         //Create DTO
         return new PartDetailDTO(
             provider_key: $this->getProviderKey(),
-            provider_id: $this->toUTF8(($providerId === self::PROVIDER_ID_URL_BASE64) ? base64_encode($url) : ($providerId ?? $sku)),
-            name: $this->toUTF8($product->name->getFirstNonEmptyStringValue()) ?? '',
-            description: $this->toUTF8($product->description->getFirstNonEmptyStringValue()) ?? '',
-            category: $this->toUTF8($category),
+            provider_id: ($providerId === self::PROVIDER_ID_URL_BASE64) ? base64_encode($url) : ($providerId ?? $sku),
+            name: $product->name->getFirstNonEmptyStringValue() ?? '',
+            description: $product->description->getFirstNonEmptyStringValue() ?? '',
+            category: $category,
             manufacturer: $this->getOrgBrandOrPersonName($product->manufacturer) ?? $this->getOrgBrandOrPersonName($product->brand),
-            mpn: $this->toUTF8($product->mpn->getFirstNonEmptyStringValue()),
-            preview_image_url: $preview ?? $this->toUTF8($product->logo->getFirstNonEmptyStringValue()),
-            provider_url: $this->toUTF8($url),
+            mpn: $product->mpn->getFirstNonEmptyStringValue(),
+            preview_image_url: $preview ?? $product->logo->getFirstNonEmptyStringValue(),
+            provider_url: $url,
             images: $images,
             parameters: $parameters,
             vendor_infos: $orderinfos,
@@ -368,7 +367,8 @@ class StructuredDataProvider implements InfoProviderInterface
      * @param string $url
      * @return bool  false if URL is malformed or host is not trusted, true otherwise
      */
-    private function isDomainTrusted(string $url): bool {
+    private function isDomainTrusted(string $url): bool
+    {
         if(filter_var($url, FILTER_VALIDATE_URL) === false)  return false;
 
         if(!empty($this->trusted_domains)) {
@@ -395,7 +395,7 @@ class StructuredDataProvider implements InfoProviderInterface
         $breadcrumbs = null;
         $tmp = $url; // do not regard redirects yet as they may prolong the URL
         // TODO : change that when there's a solution for long URLs
-        $products = $this->getSchemaProducts($this->getResponse($tmp), $url, $siteOwner, $breadcrumbs);
+        $products = $this->getSchemaProducts(self::decodeHtmlEntities($this->getResponse($tmp)), $url, $siteOwner, $breadcrumbs);
         
         $results = [];
         foreach($products as $product) {
@@ -413,11 +413,44 @@ class StructuredDataProvider implements InfoProviderInterface
 
         $siteOwner = null;
         $breadcrumbs = null;
-        $products = $this->getSchemaProducts($this->getResponse($url), $url, $siteOwner, $breadcrumbs);
+        $products = $this->getSchemaProducts(self::decodeHtmlEntities($this->getResponse($tmp)), $url, $siteOwner, $breadcrumbs);
         if(count($products) == 0)
             throw new \Exception("parse error: product page doesn't contain a https://schema.org/Product");
             // TODO : Find a better way to inform the user / log for debugging (here a faulty URLs is the user's fault)
         
         return $this->productToDTO($products[0], $url, self::PROVIDER_ID_URL_BASE64, $siteOwner, $breadcrumbs);
+    }
+
+
+    // Methods for subclasses & any other HTML-based Provider:
+    /** Decodes HTML all entities
+     * @param string $html
+     * @return string
+     */
+    public static function decodeHtmlEntities(string $html): string {
+        return html_entity_decode($html, ENT_HTML5 | ENT_SUBSTITUTE | ENT_QUOTES, 'UTF-8');
+    }
+    /** Gets DOMNodes by their class name from a DOMDocument (e.g. HTML)
+     * equivalent of JS document.getElementsByClassName()
+     * @param DOMDocument $doc
+     * @param string $class
+     * @return DOMNodeList|false
+     */
+    public static function getElementsByClassName(\DOMDocument $doc, string $class)
+    {
+        $finder = new \DOMXPath($doc);
+        return $finder->query("//*[contains(concat(' ', normalize-space(@class), ' '), ' " . $class . " ')]");
+    }
+
+    /** Gets DOMNodes by a attribute value from a DOMDocument (e.g. HTML)
+     * @param DOMDocument $doc
+     * @param string $attr  The attribute name
+     * @param string $val  The attribute value
+     * @return DOMNodeList|false
+     */
+    public static function getElementsByAttribute(\DOMDocument $doc, string $attr, string $val)
+    {
+        $finder = new \DOMXPath($doc);
+        return $finder->query("//*[@" . $attr . "='" . $val . "']");
     }
 }

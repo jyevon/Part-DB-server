@@ -13,7 +13,7 @@ use Brick\Schema\Interfaces as Schema;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
- * This class implements the Pollin.de shop as an InfoProvider
+ * This class implements the Pollin shop as an InfoProvider
  * 
  * It relies as little as possible on extracting data from HTML since that is likely to break whenever Pollin's website changes.
  * Instead, it uses extracted structured data wherever possible (see StructuredDataProvider) - even attributes the current
@@ -22,8 +22,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 class PollinProvider extends StructuredDataProvider
 {
     public function __construct(HttpClientInterface $httpClient,
-        private readonly bool $enable, private readonly int $search_limit,
-        private readonly string $store_id, private readonly bool $add_gtin_to_orderno)
+        private readonly bool $enable, private readonly string $store_id,
+        private readonly int $search_limit, private readonly bool $add_gtin_to_orderno)
     {
         parent::__construct($httpClient, $enable, null, $add_gtin_to_orderno);
     }
@@ -57,16 +57,19 @@ class PollinProvider extends StructuredDataProvider
     {
         return !empty($this->enable);
     }
-
-    /** Gets DOMNodes by their class name from a DOMDocument (e.g. HTML)
-     * equivalent of JS document.getElementsByClassName()
-     * @param DOMDocument $doc
-     * @param string $class
-     * @return DOMNodeList|false
+    
+    /**
+     * Converts a string to UTF-8 encoding or fixes broken UTF-8 encoding
+     * @param ?string  $str
+     * @return ?string  converted string or null, if input was null
      */
-    private function getElementsByClassName(\DOMDocument $doc, string $class) {
-        $finder = new \DOMXPath($doc);
-        return $finder->query("//*[contains(concat(' ', normalize-space(@class), ' '), ' " . $class . " ')]");
+    private function toUTF8(?string $str): ?string
+    {
+        if($str === null)  return null;
+
+        // Makes Pollin's encoding less broken (Ω, ≤ still problematic)
+        // TODO : Fix encoding issues
+        return mb_convert_encoding($str, 'ISO-8859-1', 'UTF-8');
     }
 
     /**
@@ -78,20 +81,23 @@ class PollinProvider extends StructuredDataProvider
      * @param ?array $categories  Fallback for category hierarchy ['top level', '...', 'actual category']
      * @return PartDetailDTO
      */
-    private function productAndHtmlToDTO(Schema\Product $product, string $html, string $url = null, string $siteOwner = null, array $breadcrumbs = null): PartDetailDTO {
+    private function productAndHtmlToDTO(Schema\Product $product,
+        string $html, string $url = null, string $siteOwner = null,
+        array $breadcrumbs = null): PartDetailDTO
+    {
+        // example product page: https://web.archive.org/web/20230826175818/https://www.pollin.de/p/led-5mm-warmweiss-klar-28000mcd-300-2-9-3-6-v-50-ma-121695
+
         $schemaDTO = $this->productToDTO($product, $url, null, $siteOwner, $breadcrumbs);
 
         // Supplement parsing HTML
         $doc = new \DOMDocument('1.0', 'utf-8');
         @$doc->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
         
+        //Parse the specifications
+        /* TODO : Improvement - parse specification 
+        relevant HTML: <li>s below <div class="headline">Technische Daten:</div> */
+        
         // parse & alter order information
-        $minQty = [];
-        $nodes = $this->getElementsByClassName($doc, 'block-prices--quantity');
-        for($i = 1; $i < count($nodes); $i++) {
-            $minQty[$i] = $nodes[$i]->textContent;
-        }
-
         $schemaOrderinfos = $schemaDTO->vendor_infos;
         $schemaPrices = null;
         $seller = null;
@@ -108,17 +114,23 @@ class PollinProvider extends StructuredDataProvider
                 $currency = $schemaPrices[0]->currency_iso_code ?? $currency;
             }
         }
+        
+        $minQty = [];
+        $nodes = self::getElementsByClassName($doc, 'block-prices--quantity');
+        for($i = 1; $i < count($nodes); $i++) {
+            $minQty[$i] = $nodes[$i]->textContent;
+        }
 
         $priceDTOs = [];
         if(count($minQty) != 0) { // block-prices exist for this product
             $minQty[0] = 1; // because first is 'up to x pcs' & second 'from x+1 pieces'
 
             $prices = [];
-            $nodes = $this->getElementsByClassName($doc, 'block-prices--cell');
+            $nodes = self::getElementsByClassName($doc, 'block-prices--cell');
             for($i = 3; $i < count($nodes); $i += 2) {
-                $matches = [];
-                if(preg_match('/[0-9]+,[0-9]+/', $nodes[$i]->textContent, $matches) > 0)
-                    $prices[($i - 1) / 2 - 1] = str_replace(',', '.', $matches[0]);
+                $match = [];
+                if(preg_match('/[0-9]+,[0-9]+/', $nodes[$i]->textContent, $match) === 1)
+                    $prices[($i - 1) / 2 - 1] = str_replace(',', '.', $match[0]);
                 else
                     $prices[($i - 1) / 2 - 1] = 0; // placeholder - if matching fails, it will probably do so for all prices
             }
@@ -137,7 +149,7 @@ class PollinProvider extends StructuredDataProvider
         }
         
         $gtin = null;
-        foreach($this->getElementsByClassName($doc, 'entry--ean') as $node) {
+        foreach(self::getElementsByClassName($doc, 'entry--ean') as $node) {
             $gtin = $node->textContent;
         }
         $orderNo = $sku;
@@ -160,13 +172,13 @@ class PollinProvider extends StructuredDataProvider
 
         // parse & alter PartDetailDTO's properties
         $imageDTOs = [];
-        foreach($this->getElementsByClassName($doc, 'thumbnail--link') as $thumb) {
+        foreach(self::getElementsByClassName($doc, 'thumbnail--link') as $thumb) {
             $imageDTOs[] = new FileDTO($thumb->attributes->getNamedItem('href')->textContent);
         }
         $preview = $imageDTOs[0]->url ?? null;
 
         $datasheetDTOs = [];
-        foreach($this->getElementsByClassName($doc, 'link--download') as $link) {
+        foreach(self::getElementsByClassName($doc, 'link--download') as $link) {
             $attr = $link->attributes;
             if($attr->getNamedItem('data-base64decode')->textContent !== 'true')  continue;
 
@@ -174,9 +186,9 @@ class PollinProvider extends StructuredDataProvider
             if($href !== null) {
                 $href = base64_decode($href);
 
-                $matches = [];
-                if(preg_match('/Download (.*\w)/', $link->textContent, $matches) > 0)
-                    $datasheetDTOs[] = new FileDTO($href, $matches[1]);
+                $match = [];
+                if(preg_match('/Download (.*\w)/', $link->textContent, $match) === 1)
+                    $datasheetDTOs[] = new FileDTO($href, $match[1]);
             }
         }
 
@@ -204,24 +216,26 @@ class PollinProvider extends StructuredDataProvider
 
     public function searchByKeyword(string $keyword): array
     {
+        // example search page: https://web.archive.org/web/20230826181242/https://www.pollin.de/search?query=Schieberegister
+
         $url = 'https://www.' . $this->store_id . '/search?query=' . urlencode($keyword) . '&hitsPerPage=' . $this->search_limit;
-        $html = $this->getResponse($url);
+        $html = self::toUTF8($this->getResponse($url));
 
         $siteOwner = null;
         $breadcrumbs = null;
         $products = $this->getSchemaProducts($html, $url, $siteOwner, $breadcrumbs);
-        if(count($products) > 0)
+        if(count($products) > 0) // redirected to product page
             return [ $this->productAndHtmlToDTO($products[0], $html, $url, $siteOwner, $breadcrumbs) ];
         
-        // Parse search results from html
+        // Parse search results from HTML
         $results = [];
         $doc = new \DOMDocument('1.0', 'utf-8');
         @$doc->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
 
-        foreach($this->getElementsByClassName($doc, 'product--sku-number') as $node) {
-            $matches = [];
-            if(preg_match('/[0-9]{6,}/', $node->textContent . $node->textContent, $matches) > 0)
-                $results[] = $this->getDetails($matches[0]);
+        foreach(self::getElementsByClassName($doc, 'product--sku-number') as $node) {
+            $match = [];
+            if(preg_match('/[0-9]{6,}/', $node->textContent . $node->textContent, $match) === 1)
+                $results[] = $this->getDetails($match[0]);
         }
 
         // TODO : Improvement - construct SearchResultDTO directly by extracting everything from html
@@ -232,7 +246,7 @@ class PollinProvider extends StructuredDataProvider
     public function getDetails(string $id): PartDetailDTO
     {
         $url = 'https://www.' . $this->store_id . '/search?query=' . $id;
-        $html = $this->getResponse($url);
+        $html = self::toUTF8($this->getResponse($url));
 
         $siteOwner = null;
         $breadcrumbs = null;

@@ -129,7 +129,6 @@ The structured data provider parses [structured data](https://schema.org/) at an
 However, as soon as there's a dedicated provider available for a certain website, you should prefer it as quality and extent of structured data varies widely. Also, you cannot search with this provider, unless you know a URL that will return the corresponding products as structured data. For these reasons, you may even consider contributing a provider, when there exists no dedicated provider but an API (see below).
 
 Within the structured data, this provider relies on [Product](https://schema.org/Product) objects and may supplement the information with [BreadcrumbList](https://schema.org/BreadcrumbList), [WebSite](https://schema.org/WebSite) and [WebPage](https://schema.org/WebPage) objects. You can check whether a webpage contains such object(s) by entering its URL into [Schema.org's validator](https://validator.schema.org/). Try, for instance:
-* `https://www.reichelt.de/audio-ic-1-kanal-pentawatt-5-tda-2003-p20676.html?CCOUNTRY=445&LANGUAGE=en&r=1`
 * `https://www.voelkner.de/products/142706`
 * `https://www.ebay.com/itm/185851714840`
 * `https://www.lcsc.com/product-detail/Light-Emitting-Diodes-LED_Worldsemi-WS2812D-F5_C190565.html`
@@ -147,6 +146,65 @@ Following env configuration options are available:
 * `PROVIDER_POLLIN_SEARCH_LIMIT`: The maximum number of results to return per search (optional, default: `12`). The loading time increases drastically with higher numbers because, currently, the product page of every result is called!
 * `PROVIDER_POLLIN_STORE_ID`: The store domain you want to use, e.g. `pollin.de` or `pollin.at`. This decides the language of results, currency and country of prices - although there may not even be a difference between the German and Austrian storefront. (optional, default: `pollin.de`)
 * `PROVIDER_POLLIN_ADD_GTIN_TO_ORDERNO`: If this is set to `1` and a GTIN (aka EAN) was found, it is appended to the `Supplier part number` field (optional, default: `1`)
+
+### Reichelt
+The Reichelt provider uses structured data (see above) and scrapes their online shop to search for parts and getting shopping information from [Reichelt](https://www.reichelt.com/) since there exists no API. It relies as little as possible on extracting data from HTML, but can still get disrupted by any future change to their website.
+
+Following env configuration options are available:
+* `PROVIDER_REICHELT_ENABLE`: Set to `1` to enable this provider (mandatory, default: `0`)
+* `PROVIDER_REICHELT_LANGUAGE`: The language you want to get results in (`DE`, `EN`, `FR`, `PL`, `NL` and `IT`) (optional, default: `EN`)
+* `PROVIDER_REICHELT_COUNTRY`: The country you want to get results for (codes see below) (optional, default: `445` = Germany)
+* `PROVIDER_REICHELT_CURRENCY`: The currency you want to get prices in (optional, default: empty = `EUR`). This only works in combination  with the corresponding country, e.g.: COUNTRY=`CH` CURRENCY=`CHF`, COUNTRY=`PL` CURRENCY=`PLN`)
+* `PROVIDER_REICHELT_GET_NET_PRICES`: If this is set to `1` the prices will be net prices (excluding tax), otherwise gross prices (optional, default: `1`)
+* `PROVIDER_REICHELT_ADD_GTIN_TO_ORDERNO`: If this is set to `1` and a GTIN (aka EAN) was found, it is appended to the `Supplier part number` field (optional, default: `1`)
+
+#### Country Codes
+Reichelt uses non-standard 3-digit country codes which can be found in the HTML code of the corresponnding `<select id="selectCCOUNTRY" name="CCOUNTRY">` or here:
+
+Austria: `458`, France: `443`, Germany: `445`, Italy: `446`, Netherlands: `662`, Poland: `470`,
+Switzerland: `459`, Albania: `476`, American Samoa: `677`, Amerikanisch-Ozeanien: `646`, Andorra: `461`,
+Antarctica: `683`, Antigua and Barbuda: `571`, Argentina: `597`, Aruba: `584`, Australia: `638`,
+Australisch-Ozeanien: `640`, Austria: `458`, Bahamas: `567`, Bahrain: `608`, Bangladesh: `615`,
+Barbados: `580`, Belgium: `661`, Belize: `557`, Benin: `515`, Bermuda: `555`, Bhutan: `619`,
+Bolivia, Plurinational State of: `594`, Botswana: `547`, Bouvet Island: `684`, Brazil: `592`,
+British Indian Ocean Territory: `536`, Brunei Darussalam: `627`, Bulgaria: `475`, Burkina Faso: `502`,
+Cambodia: `624`, Cameroon: `517`, Canada: `551`, Cape Verde: `505`, Cayman Islands: `573`, Chad: `504`,
+Chile: `593`, China: `631`, Christmas Island: `685`, Cocos (Keeling) Islands: `669`, Comoros: `540`,
+Cook Islands: `686`, Costa Rica: `561`, Croatia: `490`, Curacao: `690`, Cyprus: `599`, Czech Republic: `471`,
+Denmark: `449`, Djibouti: `530`, Dominica: `572`, Dominican Republic: `569`, Ecuador: `590`,
+El Salvador: `559`, Equatorial Guinea: `519`, Estonia: `467`, Falkland Islands (Malvinas): `598`,
+Faroe Islands: `460`, Fiji: `651`, Finland: `456`, Finland (Åland Island): `706`, France: `443`,
+France (French Guiana): `687`, France (French Polynesia): `656`, France (French Southern Territories): `665`,
+France (Guadeloupe): `666`, France (Martinique): `670`, France (Mayotte): `541`, France (Réunion): `676`,
+Gabon: `521`, Gambia: `507`, Georgia: `481`, Germany: `445`, Ghana: `513`, Gibraltar: `462`,
+Greece: `450`, Greenland: `552`, Grenada: `583`, Guam: `667`, Guatemala: `556`, Guinea-Bissau: `508`,
+Guyana: `588`, Heard Island and McDonald Islands: `668`, Holy See (Vatican City State): `463`,
+Honduras: `558`, Hong Kong: `636`, Hungary: `473`, Iceland: `453`, India: `614`, Indonesia: `625`,
+Ireland: `448`, Italy: `446`, Jamaica: `574`, Japan: `634`, Jordan: `605`, Kiribati: `648`,
+Korea, Republic of: `633`, Kyrgyzstan: `488`, Lao Peoples Democratic Republic: `622`, Latvia: `468`,
+Lesotho: `549`, Liechtenstein: `457`, Lithuania: `469`, Luxembourg: `575`, Macao: `637`,
+Macedonia, the former Yugoslav Republic of: `493`, Madagascar: `538`, Malawi: `544`, Malaysia: `626`,
+Malta: `464`, Marshall Islands: `658`, Mauritania: `500`, Mauritius: `539`, Mexico: `554`,
+Micronesia, Federated States of: `657`, Monaco: `671`, Mongolia: `630`, Montenegro: `694`,
+Montserrat: `581`, Morocco: `494`, Mozambique: `537`, Namibia: `546`, Nauru: `641`, Nepal: `618`,
+Netherlands: `662`, Netherlands Antilles: `585`, Neuseeländisch-Ozean: `650`, New Caledonia: `645`,
+New Zealand: `642`, Niger: `503`, Niue: `672`, Norfolk Island: `673`, Northern Mariana Islands: `655`,
+Norway: `454`, Oman: `610`, Palau: `659`, Panama: `562`, Papua New Guinea: `639`, Paraguay: `595`,
+Peru: `591`, Philippines: `629`, Pitcairn: `649`, Poland: `470`, Polargebiete: `660`, Portugal: `451`,
+Puerto Rico: `675`, Qatar: `609`, Romania: `474`, Rwanda: `524`, Saint Helena,
+Ascension and Tristan da Cunha: `526`, Saint Kitts and Nevis: `565`, Saint Lucia: `577`,
+Saint Pierre and Miquelon: `553`, Saint Vincent and the Grenadines: `578`, Saint-Barthélemy: `696`,
+Saint-Martin (France): `707`, Samoa: `654`, San Marino: `465`, Sao Tome and Principe: `520`,
+Senegal: `506`, Serbia: `664`, Seychelles: `535`, Sierra Leone: `510`, Singapore: `628`,
+Sint Maarten (Netherland): `708`, Slovakia: `472`, Slovenia: `489`, Solomon Islands: `643`,
+South Africa: `545`, South Georgia and the South Sandwich Islands: `678`, Spain: `452`,
+Spain (Canary Islands): `695`, Sri Lanka: `617`, Suriname: `589`, Svalbard and Jan Mayen: `679`,
+Swaziland: `548`, Sweden: `455`, Switzerland: `459`, Taiwan, Province of China: `635`,
+Tajikistan: `487`, Thailand: `621`, Timor-Leste: `680`, Togo: `514`, Tokelau: `681`, Tonga: `653`,
+Trinidad and Tobago: `582`, Turkmenistan: `485`, Turks and Caicos Islands: `568`, Tuvalu: `644`,
+United Arab Emirates: `576`, United States: `550`, Uruguay: `596`, Uzbekistan: `486`, Vanuatu: `652`,
+Viet Nam: `623`, Virgin Islands, British: `579`, Virgin Islands, U.S.: `570`, Wallis and Futuna: `647`,
+Western Sahara: `682`, Zambia: `542`
 
 ### Custom provider
 To create a custom provider, you have to create a new class implementing the `InfoProviderInterface` interface. If you want to use structured data (see above), you can also create a subclass of `StructuredDataProvider`. As long as it is a valid Symfony service, it will be automatically loaded and can be used.
