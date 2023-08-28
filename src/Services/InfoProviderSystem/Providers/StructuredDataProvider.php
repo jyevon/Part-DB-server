@@ -75,6 +75,14 @@ class StructuredDataProvider implements InfoProviderInterface
         $content = $resp->getContent(); // call before getInfo() to make sure final request has finished
         $url = $resp->getInfo()['url'] ?? $url; // get URL after possible redirects
 
+        // Fix encoding being misinterpreted as ISO-8859-1 by DOMDocument::loadHTML(), this also affected brick\schema
+        $match = [];
+        if(preg_match('/charset=([^;\s]*)/', $resp->getHeaders()['content-type'][0], $match) === 1)
+            $content = '<?xml encoding="' . $match[1] . '"?>' . $content;
+        
+        // Decode HTML entities here to not do this for every individual string extracted
+        $content = html_entity_decode($content, ENT_HTML5 | ENT_SUBSTITUTE | ENT_QUOTES, $match[1] ?? 'UTF-8');
+
         return $content;
     }
 
@@ -225,6 +233,7 @@ class StructuredDataProvider implements InfoProviderInterface
      * @param ?string $providerId  Override for provider_id, null means use SKU(/GTIN). PROVIDER_ID_URL_BASE64 means base64-encoded product URL
      * @param ?string $seller  Fallback for distributor_name, or null
      * @param ?array $categories  Fallback for category hierarchy ['top level', '...', 'actual category']
+     * @param bool $includesTax  Whether the prices include taxes
      * @return PartDetailDTO  distributor_name falls back to DISTRIBUTOR_PLACEHOLDER if missing - replace in result if necessary
      */
     protected function productToDTO(Schema\Product $product,
@@ -300,7 +309,7 @@ class StructuredDataProvider implements InfoProviderInterface
                 $quantity = $offer->eligibleQuantity->getFirstValue();
                 
                 if (is_string($price)) {
-                    if($priceCurrency == "US$")  $priceCurrency = 'USD'; // for lcsc.com (iso codes are seemingly overrated ...)
+                    if($priceCurrency == "US$")  $priceCurrency = 'USD'; // for lcsc.com (ISO codes are seemingly overrated ...)
 
                     $prices[] = new PriceDTO(
                         minimum_discount_amount: ($quantity !== null) ? $quantity->minValue->getFirstNonEmptyStringValue() : 1,
@@ -395,7 +404,7 @@ class StructuredDataProvider implements InfoProviderInterface
         $breadcrumbs = null;
         $tmp = $url; // do not regard redirects yet as they may prolong the URL
         // TODO : change that when there's a solution for long URLs
-        $products = $this->getSchemaProducts(self::decodeHtmlEntities($this->getResponse($tmp)), $url, $siteOwner, $breadcrumbs);
+        $products = $this->getSchemaProducts($this->getResponse($tmp), $url, $siteOwner, $breadcrumbs);
         
         $results = [];
         foreach($products as $product) {
@@ -413,7 +422,7 @@ class StructuredDataProvider implements InfoProviderInterface
 
         $siteOwner = null;
         $breadcrumbs = null;
-        $products = $this->getSchemaProducts(self::decodeHtmlEntities($this->getResponse($tmp)), $url, $siteOwner, $breadcrumbs);
+        $products = $this->getSchemaProducts($this->getResponse($tmp), $url, $siteOwner, $breadcrumbs);
         if(count($products) == 0)
             throw new \Exception("parse error: product page doesn't contain a https://schema.org/Product");
             // TODO : Find a better way to inform the user / log for debugging (here a faulty URLs is the user's fault)
@@ -423,13 +432,6 @@ class StructuredDataProvider implements InfoProviderInterface
 
 
     // Methods for subclasses & any other HTML-based Provider:
-    /** Decodes HTML all entities
-     * @param string $html
-     * @return string
-     */
-    public static function decodeHtmlEntities(string $html): string {
-        return html_entity_decode($html, ENT_HTML5 | ENT_SUBSTITUTE | ENT_QUOTES, 'UTF-8');
-    }
     /** Gets DOMNodes by their class name from a DOMDocument (e.g. HTML)
      * equivalent of JS document.getElementsByClassName()
      * @param DOMDocument $doc

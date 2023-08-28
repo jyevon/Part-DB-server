@@ -59,20 +59,6 @@ class PollinProvider extends StructuredDataProvider
     }
     
     /**
-     * Converts a string to UTF-8 encoding or fixes broken UTF-8 encoding
-     * @param ?string  $str
-     * @return ?string  converted string or null, if input was null
-     */
-    private function toUTF8(?string $str): ?string
-    {
-        if($str === null)  return null;
-
-        // Makes Pollin's encoding less broken (Ω, ≤ still problematic)
-        // TODO : Fix encoding issues
-        return mb_convert_encoding($str, 'ISO-8859-1', 'UTF-8');
-    }
-
-    /**
      * Creates DTO from Product schema object and HTML - aka the actual parsing
      * @param Brick\Schema\Product $product
      * @param string $html The HTML Document to parse
@@ -87,11 +73,11 @@ class PollinProvider extends StructuredDataProvider
     {
         // example product page: https://web.archive.org/web/20230826175818/https://www.pollin.de/p/led-5mm-warmweiss-klar-28000mcd-300-2-9-3-6-v-50-ma-121695
 
-        $schemaDTO = $this->productToDTO($product, $url, null, $siteOwner, $breadcrumbs);
+        $schemaDTO = $this->productToDTO($product, $url, null, $siteOwner ?? 'Pollin Electronic GmbH', $breadcrumbs);
 
         // Supplement parsing HTML
         $doc = new \DOMDocument('1.0', 'utf-8');
-        @$doc->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        $doc->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NOWARNING | LIBXML_NOERROR);
         
         //Parse the specifications
         /* TODO : Improvement - parse specification 
@@ -115,34 +101,26 @@ class PollinProvider extends StructuredDataProvider
             }
         }
         
-        $minQty = [];
-        $nodes = self::getElementsByClassName($doc, 'block-prices--quantity');
-        for($i = 1; $i < count($nodes); $i++) {
-            $minQty[$i] = $nodes[$i]->textContent;
-        }
-
+        $QTYs = self::getElementsByClassName($doc, 'block-prices--quantity');
         $priceDTOs = [];
-        if(count($minQty) != 0) { // block-prices exist for this product
-            $minQty[0] = 1; // because first is 'up to x pcs' & second 'from x+1 pieces'
-
-            $prices = [];
-            $nodes = self::getElementsByClassName($doc, 'block-prices--cell');
-            for($i = 3; $i < count($nodes); $i += 2) {
-                $match = [];
-                if(preg_match('/[0-9]+,[0-9]+/', $nodes[$i]->textContent, $match) === 1)
-                    $prices[($i - 1) / 2 - 1] = str_replace(',', '.', $match[0]);
-                else
-                    $prices[($i - 1) / 2 - 1] = 0; // placeholder - if matching fails, it will probably do so for all prices
-            }
-
-            if(count($minQty) !== count($prices))
+        if(count($QTYs) != 0) { // block-prices exist for this product
+            $prices = self::getElementsByClassName($doc, 'block-prices--cell');
+            if(count($QTYs) !== count($prices)/2 - 1)
                 throw new \Exception("parse error: number of price and minimum quantity declarations doesn't match!");
                 // TODO : Find a better way to inform the user / log for debugging
+            
+            for($i = 0; $i < count($QTYs); $i++) {
+                $qty = ($i == 0) ? 1 : $minQty[$i] = $QTYs[$i]->textContent;
+                // because first is 'up to x pcs' & second 'from x+1 pieces'
 
-            for($i = 0; $i < count($minQty); $i++) {
+                $match = [];
+                $price = 0; // placeholder - if matching fails, it will probably do so for all prices
+                if(preg_match('/[0-9]+,[0-9]+/', $prices[$i * 2 + 3]->textContent, $match) === 1)
+                    $price = str_replace(',', '.', $match[0]);
+
                 $priceDTOs[] = new PriceDTO(
-                    minimum_discount_amount: (float) $minQty[$i],
-                    price: $prices[$i],
+                    minimum_discount_amount: (float) $qty,
+                    price: $price,
                     currency_iso_code: $currency,
                 );
             }
@@ -157,13 +135,13 @@ class PollinProvider extends StructuredDataProvider
             $orderNo .= ', GTIN: ' . $gtin;
         
         $orderDTOs = [];
-        if($gtin === null  && count($priceDTOs) == 0 && $schemaOrderinfos[0]->distributor_name !== self::DISTRIBUTOR_PLACEHOLDER) {
+        if($gtin === null  && count($priceDTOs) == 0) {
             $orderDTOs = $schemaOrderinfos; // no new info - use old PurchaseInfoDTO
         }else{
             if(count($priceDTOs) == 0)  $priceDTOs = $schemaPrices; // price info didn't change
             
             $orderDTOs[] = new PurchaseInfoDTO(
-                distributor_name: ($schemaOrderinfos[0]->distributor_name !== self::DISTRIBUTOR_PLACEHOLDER) ? $seller : 'Pollin Electronic GmbH',
+                distributor_name: $seller,
                 order_number: $orderNo,
                 prices: $priceDTOs,
                 product_url: $prodUrl,
@@ -219,7 +197,7 @@ class PollinProvider extends StructuredDataProvider
         // example search page: https://web.archive.org/web/20230826181242/https://www.pollin.de/search?query=Schieberegister
 
         $url = 'https://www.' . $this->store_id . '/search?query=' . urlencode($keyword) . '&hitsPerPage=' . $this->search_limit;
-        $html = self::toUTF8($this->getResponse($url));
+        $html = $this->getResponse($url);
 
         $siteOwner = null;
         $breadcrumbs = null;
@@ -230,7 +208,7 @@ class PollinProvider extends StructuredDataProvider
         // Parse search results from HTML
         $results = [];
         $doc = new \DOMDocument('1.0', 'utf-8');
-        @$doc->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        $doc->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NOWARNING | LIBXML_NOERROR);
 
         foreach(self::getElementsByClassName($doc, 'product--sku-number') as $node) {
             $match = [];
@@ -238,7 +216,7 @@ class PollinProvider extends StructuredDataProvider
                 $results[] = $this->getDetails($match[0]);
         }
 
-        // TODO : Improvement - construct SearchResultDTO directly by extracting everything from html
+        // TODO : Improvement - construct SearchResultDTO directly by extracting everything from HTML
 
         return $results;
     }
@@ -246,7 +224,7 @@ class PollinProvider extends StructuredDataProvider
     public function getDetails(string $id): PartDetailDTO
     {
         $url = 'https://www.' . $this->store_id . '/search?query=' . $id;
-        $html = self::toUTF8($this->getResponse($url));
+        $html = $this->getResponse($url);
 
         $siteOwner = null;
         $breadcrumbs = null;

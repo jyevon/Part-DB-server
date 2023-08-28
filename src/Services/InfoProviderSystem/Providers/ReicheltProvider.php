@@ -106,11 +106,11 @@ class ReicheltProvider extends StructuredDataProvider
     {
         // example product page: https://web.archive.org/web/20230826175507/https://www.reichelt.com/de/en/carbon-film-resistor-1-4-w-5-3-3-ohm-1-4w-3-3-p1396.html?r=1
 
-        $schemaDTO = $this->productToDTO($product, $url, null, $siteOwner, $breadcrumbs, !$this->net_prices);
+        $schemaDTO = $this->productToDTO($product, $url, null, $siteOwner ?? 'reichelt elektronik GmbH & Co. KG', $breadcrumbs, !$this->net_prices);
 
         // Supplement parsing HTML
         $doc = new \DOMDocument('1.0', 'utf-8');
-        @$doc->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        $doc->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NOWARNING | LIBXML_NOERROR);
         
         //Parse the specifications
         $parameters = [];
@@ -232,7 +232,7 @@ class ReicheltProvider extends StructuredDataProvider
         
         $orderDTOs = [];
         $orderDTOs[] = new PurchaseInfoDTO(
-            distributor_name: ($schemaOrderinfos[0]->distributor_name !== self::DISTRIBUTOR_PLACEHOLDER) ? $seller : 'reichelt elektronik GmbH & Co. KG',
+            distributor_name: $seller,
             order_number: $sku,
             prices: $priceDTOs,
             product_url: $prodUrl,
@@ -285,7 +285,7 @@ class ReicheltProvider extends StructuredDataProvider
         // example search page: https://web.archive.org/web/20230826181814/https://www.reichelt.com/index.html?ACTION=446&LA=446&nbc=1&q=mosfet%20ao
 
         $url = self::BASE_URL . '/index.html?ACTION=446&LA=3&nbc=1&q=' . urlencode($keyword) . '&' . $this->getUrlParams();
-        $html = self::decodeHtmlEntities($this->getResponse($url));
+        $html = $this->getResponse($url);
 
         $siteOwner = null;
         $products = $this->getSchemaProducts($html, $url, $siteOwner);
@@ -293,7 +293,7 @@ class ReicheltProvider extends StructuredDataProvider
 
         // Parse images from HTML (schema data contains only https://cdn-reichelt.de/bilder/leer.gif because of lazy loading)
         $doc = new \DOMDocument('1.0', 'utf-8');
-        @$doc->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        $doc->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NOWARNING | LIBXML_NOERROR);
 
         $images = [];
         foreach(self::getElementsByAttribute($doc, 'itemprop', 'image') as $node) {
@@ -331,7 +331,7 @@ class ReicheltProvider extends StructuredDataProvider
     public function getDetails(string $id): PartDetailDTO
     {
         $url = self::BASE_URL . '/index.html?ARTICLE=' . $id . '&' . $this->getUrlParams();
-        $html = self::decodeHtmlEntities($this->getResponse($url));
+        $html = $this->getResponse($url);
 
         $siteOwner = null;
         $breadcrumbs = null;
