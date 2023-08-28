@@ -172,8 +172,8 @@ class ReicheltProvider extends StructuredDataProvider
                 value_typ: $typ,
                 value_max: $max,
                 unit: !empty($unit) ? $unit : null,
-                group: @$keys[$i]->parentNode  ->parentNode  ->parentNode             ->childNodes[1]->textContent,
-                //     <ul class="clearfix">   <li>          <ul class="av_propview">  <li class="av_propview_headline">
+                group: @$keys[$i]->parentNode  ->parentNode  ->previousElementSibling->textContent,
+                //      <ul class="clearfix">    <li>          <li class="av_propview_headline">
             );
         }
 
@@ -199,7 +199,7 @@ class ReicheltProvider extends StructuredDataProvider
 
         $priceDTOs = [];
         if(count($discountTable) != 0) { // block-prices exist for this product
-            $tds = @$discountTable[0]->firstChild->childNodes ?? [];
+            $tds = @$discountTable[0]->firstElementChild->childNodes ?? [];
             foreach($tds as $td) {
                 if($td->nodeType != XML_ELEMENT_NODE)  continue;
 
@@ -269,7 +269,7 @@ class ReicheltProvider extends StructuredDataProvider
             preview_image_url: $preview ?? $schemaDTO->preview_image_url,
             manufacturing_status: $schemaDTO->manufacturing_status,
             provider_url: $schemaDTO->provider_url,
-            footprint: $footprint,
+            footprint: $footprint ?? $schemaDTO->footprint,
             notes: $schemaDTO->notes,
             datasheets: $datasheetDTOs,
             images: $imageDTOs,

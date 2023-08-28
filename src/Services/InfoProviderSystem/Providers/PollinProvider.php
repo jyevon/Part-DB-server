@@ -80,8 +80,98 @@ class PollinProvider extends StructuredDataProvider
         $doc->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NOWARNING | LIBXML_NOERROR);
         
         //Parse the specifications
-        /* TODO : Improvement - parse specification 
-        relevant HTML: <li>s below <div class="headline">Technische Daten:</div> */
+        // There are two locations for specification on the page. The content often overlaps, but neither one is always present!
+        $speclines = [];
+        foreach(self::getElementsByClassName($doc, 'headline') as $headline) {
+            /* This check will break as soon as they translate their shop into languages other than German,
+            but the specification are not otherwise marked by a class name etc. */
+            if(trim($headline->textContent) === 'Technische Daten:') {
+                $lis = @$headline->nextElementSibling->childNodes;
+                //                 <ul>         <li>s
+                if($lis === null)  break;
+
+                foreach($lis as $li)
+                    $speclines[] = $li->textContent;
+                
+                break;
+            }
+        }
+
+        foreach(self::getElementsByClassName($doc, 'feature-points') as $highlights) {
+            $lis = @$highlights->childNodes[1]->childNodes;
+            //                   <ul>           <li>s
+
+            if($lis === null)  break;
+
+            foreach($lis as $li) {
+                if(!in_array($li->textContent, $speclines))
+                    $speclines[] = $li->textContent;
+            }
+
+            break;
+        }
+
+        $parameters = [];
+        $footprint = null;
+        foreach($speclines as $line) {
+            $name = '';
+
+            // Parse property name
+            $colon = strpos($line, ':');
+            $match = [];
+            if($colon !== false) {
+                // e.g. 'Nennbelastbarkeit: 0,6 W'
+                $name = substr($line, 0, $colon);
+                $line = trim(substr($line, $colon + 1));
+            }else if(preg_match('/^([^\d\s]+) (([<≤>≥] ?)?[-+]?[0-9,.x]+( [^\s]*|$))/u', $line, $match) === 1) {
+                // e.g. 'Anzeigefläche 62,5x16 mm'
+                $name = $match[1];
+                $line = $match[2];
+            }
+
+            /* This check will break as soon as they translate their shop into languages other than German,
+            but the specification are not otherwise marked by a class name etc. */
+            if($name === 'Bauform') {
+                $footprint = $line;
+                continue;
+            }
+
+            // Parse known number formats
+            $min = null;
+            $typ = null;
+            $max = null;
+            $unit = '';
+            if(!empty($name)) {
+                if(preg_match('/^([-+]?[0-9,.]+) ([^\s]*)\s*$/', $line, $match) === 1) {
+                    // e.g. '0,6 W'
+                    $typ = (float) $match[1];
+                    $unit = $match[2];
+                }else if(preg_match('/^([-+]?[0-9,.]+) ?([^\s]* )?(\.\.\.|…|-) ?([-+]?[0-9,.]+) ?([^\s]*)\s*$/', $line, $match) === 1) {
+                    // e.g. '-55 °C - 155 °C'
+                    $min = (float) $match[1];
+                    $max = (float) $match[4];
+                    $unit = $match[5];
+                }else if(preg_match('/^[<≤] ?([-+]?[0-9,.]+) ?([^\s]*)\s*$/u', $line, $match) === 1) {
+                    // e.g. '≤350 V'
+                    $max = (float) $match[1];
+                    $unit = $match[2];
+                }else if(preg_match('/^[>≥] ?([-+]?[0-9,.]+) ?([^\s]*)\s*$/u', $line, $match) === 1) {
+                    // e.g. '≥ 3.6 mm'
+                    $min = (float) $match[1];
+                    $unit = $match[2];
+                }
+            }
+
+            // Create DTO
+            $parameters[] = new ParameterDTO(
+                name: $name,
+                value_text: (($min ?? $typ ?? $max) === null) ? $line : null,
+                value_min: $min,
+                value_typ: $typ,
+                value_max: $max,
+                unit: !empty($unit) ? $unit : null,
+            );
+        }
         
         // parse & alter order information
         $schemaOrderinfos = $schemaDTO->vendor_infos;
@@ -129,6 +219,7 @@ class PollinProvider extends StructuredDataProvider
         $gtin = null;
         foreach(self::getElementsByClassName($doc, 'entry--ean') as $node) {
             $gtin = $node->textContent;
+            break;
         }
         $orderNo = $sku;
         if($this->add_gtin_to_orderno && $gtin !== null)
@@ -181,11 +272,11 @@ class PollinProvider extends StructuredDataProvider
             preview_image_url: $preview ?? $schemaDTO->preview_image_url,
             manufacturing_status: $schemaDTO->manufacturing_status,
             provider_url: $prodUrl ?? $schemaDTO->provider_url,
-            footprint: $schemaDTO->footprint,
+            footprint: $footprint ?? $schemaDTO->footprint,
             notes: $schemaDTO->notes,
             datasheets: $datasheetDTOs,
             images: $imageDTOs,
-            parameters: $schemaDTO->parameters,
+            parameters: $parameters,
             vendor_infos: $orderDTOs,
             mass: $schemaDTO->mass,
             manufacturer_product_url: $schemaDTO->manufacturer_product_url,
