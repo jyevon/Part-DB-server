@@ -217,7 +217,7 @@ class PollinProvider extends StructuredDataProvider
         }
         
         $gtin = null;
-        foreach(self::getElementsByClassName($doc, 'entry--ean') as $node) {
+        foreach(self::getElementsByClassName($doc, 'entry--content entry--ean') as $node) {
             $gtin = $node->textContent;
             break;
         }
