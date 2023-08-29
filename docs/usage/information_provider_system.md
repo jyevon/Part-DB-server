@@ -77,12 +77,14 @@ Part-DB caches the search results internally, so if you have searched for a part
 Following env configuration options are available:
 
 * `PROVIDER_OCTOPART_CLIENT_ID`: The client ID you got from Nexar (mandatory)
-* `PROVIDER_OCTOPART_CLIENT_SECRET`: The client secret you got from Nexar (mandatory)
+* `PROVIDER_OCTOPART_SECRET`: The client secret you got from Nexar (mandatory)
 * `PROVIDER_OCTOPART_CURRENCY`: The currency you want to get prices in if available (optional, 3 letter ISO-code, default: `EUR`). If an offer is only available in a certain currency, 
 Part-DB will save the prices in their native currency, and you can use Part-DB currency conversion feature to convert it to your preferred currency.
 * `PROVIDER_OCOTPART_COUNTRY`: The country you want to get prices in if available (optional, 2 letter ISO-code, default: `DE`). To get correct prices, you have to set this and the currency setting to the correct value.
 * `PROVIDER_OCTOPART_SEARCH_LIMIT`: The maximum number of results to return per search (optional, default: `10`). This affects how quickly your monthly limit is used up.
 * `PROVIDER_OCTOPART_ONLY_AUTHORIZED_SELLERS`: If set to `true`, only offers from [authorized sellers](https://octopart.com/authorized) will be returned (optional, default: `false`).
+
+**Attention**: If you change the octopart clientID after you have already used the provider, you have to remove the OAuth token in the Part-DB database. Remove the entry in the table `oauth_tokens` with the name `ip_octopart_oauth`.
 
 ### Digi-Key
 The Digi-Key provider uses the [Digi-Key API](https://developer.digikey.com/) to search for parts and getting shopping information from [Digi-Key](https://www.digikey.com/).
@@ -92,7 +94,7 @@ You will get an Client ID and a Client Secret, which you have to enter in the Pa
 
 Following env configuration options are available:
 * `PROVIDER_DIGIKEY_CLIENT_ID`: The client ID you got from Digi-Key (mandatory)
-* `PROVIDER_DIGIKEY_CLIENT_SECRET`: The client secret you got from Digi-Key (mandatory)
+* `PROVIDER_DIGIKEY_SECRET`: The client secret you got from Digi-Key (mandatory)
 * `PROVIDER_DIGIKEY_CURRENCY`: The currency you want to get prices in (optional, default: `EUR`)
 * `PROVIDER_DIGIKEY_LANGUAGE`: The language you want to get the descriptions in (optional, default: `en`)
 * `PROVIDER_DIGIKEY_COUNTRY`: The country you want to get the prices for (optional, default: `DE`)
@@ -108,8 +110,8 @@ To use it you have to create an account at TME and get an API key on the [TME AP
 You have to generate a new anonymous key there and enter the key and secret in the Part-DB env configuration (see below).
 
 Following env configuration options are available:
-* `PROVIDER_TME_API_KEY`: The API key you got from TME (mandatory)  
-* `PROVIDER_TME_API_SECRET`: The API secret you got from TME (mandatory)
+* `PROVIDER_TME_KEY`: The API key you got from TME (mandatory)  
+* `PROVIDER_TME_SECRET`: The API secret you got from TME (mandatory)
 * `PROVIDER_TME_CURRENCY`: The currency you want to get prices in (optional, default: `EUR`)
 * `PROVIDER_TME_LANGUAGE`: The language you want to get the descriptions in (`en`, `de` and `pl`) (optional, default: `en`)
 * `PROVIDER_TME_COUNTRY`: The country you want to get the prices for (optional, default: `DE`)
