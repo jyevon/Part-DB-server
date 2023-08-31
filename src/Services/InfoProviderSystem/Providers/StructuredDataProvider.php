@@ -349,6 +349,8 @@ class StructuredDataProvider implements InfoProviderInterface
         //Parse images
         $images = [];
         foreach($product->image as $image) {
+            if(empty($image))  continue;
+
             $images[] = new FileDTO((string) $image);
         }
         $preview = $images[0]->url ?? null;
@@ -422,7 +424,7 @@ class StructuredDataProvider implements InfoProviderInterface
 
         $siteOwner = null;
         $breadcrumbs = null;
-        $products = $this->getSchemaProducts($this->getResponse($tmp), $url, $siteOwner, $breadcrumbs);
+        $products = $this->getSchemaProducts($this->getResponse($url), $url, $siteOwner, $breadcrumbs);
         if(count($products) == 0)
             throw new \Exception("parse error: product page doesn't contain a https://schema.org/Product");
             // TODO : Find a better way to inform the user / log for debugging (here a faulty URLs is the user's fault)
