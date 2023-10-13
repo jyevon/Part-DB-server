@@ -43,7 +43,6 @@ export default class extends Controller {
             selectOnTab: true,
             maxOptions: null,
             create: allowAdd ? this.createItem.bind(this) : false,
-            createFilter: /\D/, //Must contain a non-digit character, otherwise they would be recognized as DB ID
 
             searchField: [
                 {field: "text", weight : 2},
@@ -67,12 +66,14 @@ export default class extends Controller {
         };
 
         this._tomSelect = new TomSelect(this.element, settings);
-        this._tomSelect.sync();
+        //Do not do a sync here as this breaks the initial rendering of the empty option
+        //this._tomSelect.sync();
     }
 
     createItem(input, callback) {
         callback({
-            value: input,
+            //$%$ is a special value prefix, that is used to identify items, that are not yet in the DB
+            value: '$%$' + input,
             text: input,
             not_in_db_yet: true,
         });

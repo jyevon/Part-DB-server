@@ -211,6 +211,15 @@ services:
         arguments:
             $saml_enabled: '%partdb.saml.enabled%'
 
+    ####################################################################################################################
+    # Table settings
+    ####################################################################################################################
+    App\DataTables\PartsDataTable:
+        arguments:
+            $visible_columns: '%partdb.table.parts.default_columns%'
+
+    App\DataTables\Helpers\ColumnSortHelper:
+        shared: false   # Service has a state so not share it between different tables
 
     ####################################################################################################################
     # Label system
@@ -277,6 +286,22 @@ services:
             $search_limit: '%env(int:PROVIDER_OCTOPART_SEARCH_LIMIT)%'
             $onlyAuthorizedSellers: '%env(bool:PROVIDER_OCTOPART_ONLY_AUTHORIZED_SELLERS)%'
 
+    App\Services\InfoProviderSystem\Providers\MouserProvider:
+        arguments:
+            $api_key: '%env(string:PROVIDER_MOUSER_KEY)%'
+            $language: '%env(string:PROVIDER_MOUSER_SEARCH_WITH_SIGNUP_LANGUAGE)%'
+            $options: '%env(string:PROVIDER_MOUSER_SEARCH_OPTION)%'
+            $search_limit: '%env(int:PROVIDER_MOUSER_SEARCH_LIMIT)%'
+
+    ####################################################################################################################
+    # API system
+    ####################################################################################################################
+    App\State\PartDBInfoProvider:
+        arguments:
+            $default_uri: '%partdb.default_uri%'
+            $global_locale: '%partdb.locale%'
+            $global_timezone: '%partdb.timezone%'
+
     App\Services\InfoProviderSystem\Providers\StructuredDataProvider:
         arguments:
             $enable: '%env(bool:PROVIDER_STRUCDATA_ENABLE)%'
@@ -340,6 +365,12 @@ services:
     App\Services\System\UpdateAvailableManager:
         arguments:
             $check_for_updates: '%partdb.check_for_updates%'
+
+    App\Services\System\BannerHelper:
+        arguments:
+            $partdb_banner: '%partdb.banner%'
+            $project_dir: '%kernel.project_dir%'
+
 
     ####################################################################################################################
     # Monolog

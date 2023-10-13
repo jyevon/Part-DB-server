@@ -731,10 +731,10 @@
       </notes>
       <segment>
         <source>user.edit.tfa.disable_tfa_message</source>
-        <target>This will disable &lt;b&gt;all active two-factor authentication methods of the user&lt;/b&gt; and delete the &lt;b&gt;backup codes&lt;/b&gt;!
-&lt;br&gt;
-The user will have to set up all two-factor authentication methods again and print new backup codes! &lt;br&gt;&lt;br&gt;
-&lt;b&gt;Only do this if you are absolutely sure about the identity of the user (seeking help), otherwise the account could be compromised by an attacker!&lt;/b&gt;</target>
+        <target><![CDATA[This will disable <b>all active two-factor authentication methods of the user</b> and delete the <b>backup codes</b>!
+<br>
+The user will have to set up all two-factor authentication methods again and print new backup codes! <br><br>
+<b>Only do this if you are absolutely sure about the identity of the user (seeking help), otherwise the account could be compromised by an attacker!</b>]]></target>
       </segment>
     </unit>
     <unit id="02HvwiS" name="user.edit.tfa.disable_tfa.btn">
@@ -1512,7 +1512,7 @@ Sub elements will be moved upwards.]]></target>
       </notes>
       <segment>
         <source>label_generator.common</source>
-        <target>Common</target>
+        <target>Comune</target>
       </segment>
     </unit>
     <unit id="WLpYniK" name="label_generator.advanced">
@@ -11326,67 +11326,67 @@ Element 3</target>
       </segment>
     </unit>
     <unit id="DGczoY6" name="tfa_u2f.add_key.registration_error">
-      <segment state="translated">
+      <segment>
         <source>tfa_u2f.add_key.registration_error</source>
         <target>An error occurred during the registration of the security key. Try again or use another security key!</target>
       </segment>
     </unit>
     <unit id="ie0Ca0l" name="log.target_type.none">
-      <segment state="translated">
+      <segment>
         <source>log.target_type.none</source>
         <target>None</target>
       </segment>
     </unit>
     <unit id="R2nX4ip" name="ui.darkmode.light">
-      <segment state="translated">
+      <segment>
         <source>ui.darkmode.light</source>
         <target>Light</target>
       </segment>
     </unit>
     <unit id="3NHpuW3" name="ui.darkmode.dark">
-      <segment state="translated">
+      <segment>
         <source>ui.darkmode.dark</source>
         <target>Dark</target>
       </segment>
     </unit>
     <unit id="4TGOK5_" name="ui.darkmode.auto">
-      <segment state="translated">
+      <segment>
         <source>ui.darkmode.auto</source>
         <target>Auto (decide based on system settings)</target>
       </segment>
     </unit>
     <unit id="9N0N8aL" name="label_generator.no_lines_given">
-      <segment state="translated">
+      <segment>
         <source>label_generator.no_lines_given</source>
         <target>No text content given! The labels will remain empty.</target>
       </segment>
     </unit>
     <unit id="RdFvZsb" name="user.password_strength.very_weak">
-      <segment state="translated">
+      <segment>
         <source>user.password_strength.very_weak</source>
         <target>Very weak</target>
       </segment>
     </unit>
     <unit id="IBjmblZ" name="user.password_strength.weak">
-      <segment state="translated">
+      <segment>
         <source>user.password_strength.weak</source>
         <target>Weak</target>
       </segment>
     </unit>
     <unit id="qSm_ID0" name="user.password_strength.medium">
-      <segment state="translated">
+      <segment>
         <source>user.password_strength.medium</source>
         <target>Medium</target>
       </segment>
     </unit>
     <unit id="aWAaADS" name="user.password_strength.strong">
-      <segment state="translated">
+      <segment>
         <source>user.password_strength.strong</source>
         <target>Strong</target>
       </segment>
     </unit>
     <unit id="Wa9CStW" name="user.password_strength.very_strong">
-      <segment state="translated">
+      <segment>
         <source>user.password_strength.very_strong</source>
         <target>Very strong</target>
       </segment>
@@ -11580,45 +11580,225 @@ Please note, that you can not impersonate a disabled user. If you try you will g
       </segment>
     </unit>
     <unit id="21tIbM2" name="update_manager.new_version_available.title">
-      <segment state="translated">
+      <segment>
         <source>update_manager.new_version_available.title</source>
         <target>New version available</target>
       </segment>
     </unit>
     <unit id=".c.eoDV" name="update_manager.new_version_available.text">
-      <segment state="translated">
+      <segment>
         <source>update_manager.new_version_available.text</source>
         <target>A new version of Part-DB is available. Check it out here</target>
       </segment>
     </unit>
     <unit id="KOFGqJw" name="update_manager.new_version_available.only_administrators_can_see">
-      <segment state="translated">
+      <segment>
         <source>update_manager.new_version_available.only_administrators_can_see</source>
         <target>Only administrators can see this message.</target>
       </segment>
     </unit>
     <unit id="IFkvJpC" name="perm.system.show_available_updates">
-      <segment state="translated">
+      <segment>
         <source>perm.system.show_available_updates</source>
         <target>Show available Part-DB updates</target>
       </segment>
     </unit>
+    <unit id="bItnXAm" name="user.settings.api_tokens">
+      <segment>
+        <source>user.settings.api_tokens</source>
+        <target>API tokens</target>
+      </segment>
+    </unit>
+    <unit id="stkMDET" name="user.settings.api_tokens.description">
+      <segment>
+        <source>user.settings.api_tokens.description</source>
+        <target>Using an API token, other applications can access Part-DB with your user rights, to perform various actions using the Part-DB REST API. If you delete an API token here, the application, which uses the token, will no longer be able to access Part-DB on your behalf.</target>
+      </segment>
+    </unit>
+    <unit id="pd794fq" name="api_tokens.name">
+      <segment>
+        <source>api_tokens.name</source>
+        <target>Name</target>
+      </segment>
+    </unit>
+    <unit id="XodVxQi" name="api_tokens.access_level">
+      <segment>
+        <source>api_tokens.access_level</source>
+        <target>Access level</target>
+      </segment>
+    </unit>
+    <unit id="kHaDSpK" name="api_tokens.expiration_date">
+      <segment>
+        <source>api_tokens.expiration_date</source>
+        <target>Expiration date</target>
+      </segment>
+    </unit>
+    <unit id="b5uLOjr" name="api_tokens.added_date">
+      <segment>
+        <source>api_tokens.added_date</source>
+        <target>api_tokens.added_date</target>
+      </segment>
+    </unit>
+    <unit id="QPwuYKl" name="api_tokens.last_time_used">
+      <segment>
+        <source>api_tokens.last_time_used</source>
+        <target>Last time used</target>
+      </segment>
+    </unit>
+    <unit id="G91glEH" name="datetime.never">
+      <segment>
+        <source>datetime.never</source>
+        <target>Never</target>
+      </segment>
+    </unit>
+    <unit id="xPeKpJU" name="api_token.valid">
+      <segment>
+        <source>api_token.valid</source>
+        <target>Valid</target>
+      </segment>
+    </unit>
+    <unit id="jlBlmje" name="api_token.expired">
+      <segment>
+        <source>api_token.expired</source>
+        <target>Expired</target>
+      </segment>
+    </unit>
+    <unit id="Kmdx4SB" name="user.settings.show_api_documentation">
+      <segment>
+        <source>user.settings.show_api_documentation</source>
+        <target>Show API documentation</target>
+      </segment>
+    </unit>
+    <unit id="hAUCZVo" name="api_token.create_new">
+      <segment>
+        <source>api_token.create_new</source>
+        <target>Create new API token</target>
+      </segment>
+    </unit>
+    <unit id="eX17pK8" name="api_token.level.read_only">
+      <segment>
+        <source>api_token.level.read_only</source>
+        <target>Read-Only</target>
+      </segment>
+    </unit>
+    <unit id="PMVjK5p" name="api_token.level.edit">
+      <segment>
+        <source>api_token.level.edit</source>
+        <target>Edit</target>
+      </segment>
+    </unit>
+    <unit id="1dVnGpy" name="api_token.level.admin">
+      <segment>
+        <source>api_token.level.admin</source>
+        <target>Admin</target>
+      </segment>
+    </unit>
+    <unit id="gY4wVwS" name="api_token.level.full">
+      <segment>
+        <source>api_token.level.full</source>
+        <target>Full</target>
+      </segment>
+    </unit>
+    <unit id="OAFErYa" name="api_tokens.access_level.help">
+      <segment>
+        <source>api_tokens.access_level.help</source>
+        <target>You can restrict, what the API token can access. The access is always limited by the permissions of your user.</target>
+      </segment>
+    </unit>
+    <unit id="Xjs_v91" name="api_tokens.expiration_date.help">
+      <segment>
+        <source>api_tokens.expiration_date.help</source>
+        <target>After this date, the token is not usable anymore. Leave empty if the token should never expire.</target>
+      </segment>
+    </unit>
+    <unit id="0e7mD8q" name="api_tokens.your_token_is">
+      <segment>
+        <source>api_tokens.your_token_is</source>
+        <target>Your API token is</target>
+      </segment>
+    </unit>
+    <unit id="nre_kP_" name="api_tokens.please_save_it">
+      <segment>
+        <source>api_tokens.please_save_it</source>
+        <target>Please save it. You will not be able to see it again!</target>
+      </segment>
+    </unit>
+    <unit id="b17FeDX" name="api_tokens.create_new.back_to_user_settings">
+      <segment>
+        <source>api_tokens.create_new.back_to_user_settings</source>
+        <target>Back to user settings</target>
+      </segment>
+    </unit>
     <unit id="VVpmfIj" name="project.build.dont_check_quantity">
-      <segment state="translated">
+      <segment>
         <source>project.build.dont_check_quantity</source>
         <target>Do not check quantities</target>
       </segment>
     </unit>
     <unit id="AzYSIiX" name="project.build.dont_check_quantity.help">
-      <segment state="translated">
+      <segment>
         <source>project.build.dont_check_quantity.help</source>
         <target>If this option is selected, the given withdraw quantities are used as given, no matter if more or less parts are actually required to build this project.</target>
       </segment>
     </unit>
     <unit id="tfOeMsC" name="part_list.action.invert_selection">
-      <segment state="translated">
+      <segment>
         <source>part_list.action.invert_selection</source>
         <target>Invert selection</target>
+      </segment>
+    </unit>
+    <unit id="vvmdRvD" name="perm.api">
+      <segment>
+        <source>perm.api</source>
+        <target>API</target>
+      </segment>
+    </unit>
+    <unit id="VrWd7Fb" name="perm.api.access_api">
+      <segment>
+        <source>perm.api.access_api</source>
+        <target>Access API</target>
+      </segment>
+    </unit>
+    <unit id="hLOM1pt" name="perm.api.manage_tokens">
+      <segment>
+        <source>perm.api.manage_tokens</source>
+        <target>Manage API tokens</target>
+      </segment>
+    </unit>
+    <unit id="dH8PTLd" name="user.settings.api_tokens.delete.title">
+      <segment>
+        <source>user.settings.api_tokens.delete.title</source>
+        <target>Do you really want to delete this API token?</target>
+      </segment>
+    </unit>
+    <unit id="1QAaz2a" name="user.settings.api_tokens.delete">
+      <segment>
+        <source>user.settings.api_tokens.delete</source>
+        <target>Delete</target>
+      </segment>
+    </unit>
+    <unit id="bE8wV70" name="user.settings.api_tokens.delete.message">
+      <segment>
+        <source>user.settings.api_tokens.delete.message</source>
+        <target>The application, which uses this API token, will no longer have access to Part-DB. This action can not be undone!</target>
+      </segment>
+    </unit>
+    <unit id="sLAzIhh" name="api_tokens.deleted">
+      <segment>
+        <source>api_tokens.deleted</source>
+        <target>API token deleted successfully!</target>
+      </segment>
+    </unit>
+    <unit id="TFTBy25" name="user.settings.api_tokens.no_api_tokens_yet">
+      <segment>
+        <source>user.settings.api_tokens.no_api_tokens_yet</source>
+        <target>No API tokens configured yet.</target>
+      </segment>
+    </unit>
+    <unit id="8EdFeb6" name="api_token.ends_with">
+      <segment>
+        <source>api_token.ends_with</source>
+        <target>Ends with</target>
       </segment>
     </unit>
   </file>
