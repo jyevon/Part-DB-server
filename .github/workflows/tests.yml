@@ -45,6 +45,7 @@ jobs:
         with:
           php-version: ${{ matrix.php-versions }}
           coverage: pcov
+          ini-values: xdebug.max_nesting_level=1000
           extensions: mbstring, intl, gd, xsl, gmp, bcmath        
     
       - name: Start MySQL
@@ -118,6 +119,8 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           env_vars: PHP_VERSION,DB_TYPE
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
           
       - name: Test app:clean-attachments
         run: php bin/console partdb:attachments:clean-unused -n
