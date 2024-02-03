@@ -32,8 +32,10 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\Serializer\Filter\PropertyFilter;
 use App\ApiPlatform\Filter\LikeFilter;
+use App\Entity\Contracts\TimeStampableInterface;
 use App\Validator\UniqueValidatableInterface;
 use Doctrine\DBAL\Types\Types;
 use App\Entity\Base\AbstractDBElement;
@@ -69,8 +71,10 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 #[ApiResource(
     uriTemplate: '/projects/{id}/bom.{_format}',
     operations: [
-        new GetCollection(openapiContext: ['summary' => 'Retrieves the BOM entries of the given project.'],
-            security: 'is_granted("@projects.read")')
+        new GetCollection(
+            openapi: new Operation(summary: 'Retrieves the BOM entries of the given project.'),
+            security: 'is_granted("@projects.read")'
+        )
     ],
     uriVariables: [
         'id' => new Link(fromProperty: 'bom_entries', fromClass: Project::class)
@@ -81,7 +85,7 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 #[ApiFilter(LikeFilter::class, properties: ["name", "comment", 'mountnames'])]
 #[ApiFilter(RangeFilter::class, properties: ['quantity'])]
 #[ApiFilter(OrderFilter::class, properties: ['name', 'id', 'addedDate', 'lastModified', 'quantity'])]
-class ProjectBOMEntry extends AbstractDBElement implements UniqueValidatableInterface
+class ProjectBOMEntry extends AbstractDBElement implements UniqueValidatableInterface, TimeStampableInterface
 {
     use TimestampTrait;
 

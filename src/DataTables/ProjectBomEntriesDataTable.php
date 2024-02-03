@@ -100,7 +100,16 @@ class ProjectBomEntriesDataTable implements DataTableTypeInterface
                     throw new \Exception('This should never happen!');
                 },
             ])
-
+            ->add('ipn', TextColumn::class, [
+                'label' => $this->translator->trans('part.table.ipn'),
+                'orderField' => 'part.ipn',
+                'visible' => false,
+                'render' => function ($value, ProjectBOMEntry $context) {
+                    if($context->getPart() instanceof Part) {
+                        return $context->getPart()->getIpn();
+                    }
+                }
+            ])
             ->add('description', MarkdownColumn::class, [
                 'label' => $this->translator->trans('part.table.description'),
                 'data' => function (ProjectBOMEntry $context) {
@@ -142,6 +151,28 @@ class ProjectBomEntriesDataTable implements DataTableTypeInterface
                 },
             ])
 
+            ->add('instockAmount', TextColumn::class, [
+                'label' => 'project.bom.instockAmount',
+                'visible' => false,
+                'render' => function ($value, ProjectBOMEntry $context) {
+                    if ($context->getPart()) {
+                        return $this->partDataTableHelper->renderAmount($context->getPart());
+                    }
+
+                    return '';
+                }
+            ])
+            ->add('storageLocations', TextColumn::class, [
+                'label' => 'part.table.storeLocations',
+                'visible' => false,
+                'render' => function ($value, ProjectBOMEntry $context) {
+                    if ($context->getPart()) {
+                        return $this->partDataTableHelper->renderStorageLocations($context->getPart());
+                    }
+
+                    return '';
+                }
+            ])
 
             ->add('addedDate', LocaleDateTimeColumn::class, [
                 'label' => $this->translator->trans('part.table.addedDate'),

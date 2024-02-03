@@ -33,6 +33,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\Serializer\Filter\PropertyFilter;
 use App\ApiPlatform\Filter\LikeFilter;
 use App\Entity\Attachments\Attachment;
@@ -71,12 +72,14 @@ use Symfony\Component\Validator\Constraints as Assert;
         new Delete(security: 'is_granted("delete", object)'),
     ],
     normalizationContext: ['groups' => ['supplier:read', 'company:read', 'api:basic:read'], 'openapi_definition_name' => 'Read'],
-    denormalizationContext: ['groups' => ['supplier:write', 'company:write', 'api:basic:write'], 'openapi_definition_name' => 'Write'],
+    denormalizationContext: ['groups' => ['supplier:write', 'company:write', 'api:basic:write', 'attachment:write', 'parameter:write'], 'openapi_definition_name' => 'Write'],
 )]
 #[ApiResource(
     uriTemplate: '/suppliers/{id}/children.{_format}',
-    operations: [new GetCollection(openapiContext: ['summary' => 'Retrieves the children elements of a supplier'],
-        security: 'is_granted("@manufacturers.read")')],
+    operations: [new GetCollection(
+        openapi: new Operation(summary: 'Retrieves the children elements of a supplier.'),
+        security: 'is_granted("@manufacturers.read")'
+    )],
     uriVariables: [
         'id' => new Link(fromClass: Supplier::class, fromProperty: 'children')
     ],

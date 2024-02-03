@@ -36,17 +36,16 @@ if (!Encore.isRuntimeEnvironmentConfigured()) {
 Encore
     // directory where compiled assets will be stored
     .setOutputPath('public/build/')
-    // public path used by the web server to access the output path
+    // This value doesn't matter, as the public path is set to auto later down. This is just to prevent a warning
     .setPublicPath('/build')
-    // only needed for CDN's or subdirectory deploy
+    // only needed for CDN's or subdirectory deploy (this should not be needeed, as we use auto public path)
     //.setManifestKeyPrefix('build/')
 
-    /**
-     * If you are putting Part-DB into a sub directory you have to uncomment these lines and
-     * replace "part-db/" with your path to Part-DB
-     */
-    //.setPublicPath('/part-db/build')
-    //.setManifestKeyPrefix('build/')
+    //Use build/ as public path inisde the manifest.json (instead of "auto")
+    //Without this all webpack managed stuff which is loaded via the assets() twig function will not work
+    .configureManifestPlugin(options => {
+        options.publicPath = 'build/';
+    })
 
     /*
      * ENTRY CONFIG
@@ -189,3 +188,7 @@ if (Encore.isDev()) {
 
 
 module.exports = Encore.getWebpackConfig();
+
+//Enable webpack auto public path (this only works in combination with WebpackAutoPathSubscriber!!)
+//We do it here to supress a warning caused by webpack Encore
+module.exports.output.publicPath = 'auto';

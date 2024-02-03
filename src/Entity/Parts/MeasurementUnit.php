@@ -33,6 +33,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\Serializer\Filter\PropertyFilter;
 use App\ApiPlatform\Filter\LikeFilter;
 use App\Entity\Attachments\Attachment;
@@ -70,13 +71,15 @@ use Symfony\Component\Validator\Constraints as Assert;
         new Delete(security: 'is_granted("delete", object)'),
     ],
     normalizationContext: ['groups' => ['measurement_unit:read', 'api:basic:read'], 'openapi_definition_name' => 'Read'],
-    denormalizationContext: ['groups' => ['measurement_unit:write', 'api:basic:write'], 'openapi_definition_name' => 'Write'],
+    denormalizationContext: ['groups' => ['measurement_unit:write', 'api:basic:write', 'attachment:write', 'parameter:write'], 'openapi_definition_name' => 'Write'],
 )]
 #[ApiResource(
     uriTemplate: '/footprints/{id}/children.{_format}',
     operations: [
-        new GetCollection(openapiContext: ['summary' => 'Retrieves the children elements of a MeasurementUnit.'],
-            security: 'is_granted("@measurement_units.read")')
+        new GetCollection(
+            openapi: new Operation(summary: 'Retrieves the children elements of a MeasurementUnit.'),
+            security: 'is_granted("@measurement_units.read")'
+        )
     ],
     uriVariables: [
         'id' => new Link(fromProperty: 'children', fromClass: MeasurementUnit::class)

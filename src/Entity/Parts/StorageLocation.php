@@ -33,6 +33,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\Serializer\Filter\PropertyFilter;
 use App\ApiPlatform\Filter\LikeFilter;
 use App\Entity\Attachments\Attachment;
@@ -66,13 +67,15 @@ use Symfony\Component\Validator\Constraints as Assert;
         new Delete(security: 'is_granted("delete", object)'),
     ],
     normalizationContext: ['groups' => ['location:read', 'api:basic:read'], 'openapi_definition_name' => 'Read'],
-    denormalizationContext: ['groups' => ['location:write', 'api:basic:write'], 'openapi_definition_name' => 'Write'],
+    denormalizationContext: ['groups' => ['location:write', 'api:basic:write', 'attachment:write', 'parameter:write'], 'openapi_definition_name' => 'Write'],
 )]
 #[ApiResource(
     uriTemplate: '/storage_locations/{id}/children.{_format}',
     operations: [
-        new GetCollection(openapiContext: ['summary' => 'Retrieves the children elements of a storage location.'],
-            security: 'is_granted("@storelocations.read")')
+        new GetCollection(
+            openapi: new Operation(summary: 'Retrieves the children elements of a storage location.'),
+            security: 'is_granted("@storelocations.read")'
+        )
     ],
     uriVariables: [
         'id' => new Link(fromProperty: 'children', fromClass: Manufacturer::class)
