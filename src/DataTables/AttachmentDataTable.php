@@ -27,7 +27,6 @@ use App\DataTables\Column\PrettyBoolColumn;
 use App\DataTables\Column\RowClassColumn;
 use App\DataTables\Filters\AttachmentFilter;
 use App\Entity\Attachments\Attachment;
-use App\Entity\LogSystem\AbstractLogEntry;
 use App\Services\Attachments\AttachmentManager;
 use App\Services\Attachments\AttachmentURLGenerator;
 use App\Services\ElementTypeNameGenerator;
@@ -221,7 +220,7 @@ final class AttachmentDataTable implements DataTableTypeInterface
         //We do the most stuff here in the filter class
         if (isset($options['filter'])) {
             if(!$options['filter'] instanceof AttachmentFilter) {
-                throw new \Exception('filter must be an instance of AttachmentFilter!');
+                throw new \RuntimeException('filter must be an instance of AttachmentFilter!');
             }
 
             $filter = $options['filter'];

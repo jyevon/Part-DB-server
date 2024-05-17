@@ -23,6 +23,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\DataTables\LogDataTable;
+use App\Entity\Attachments\AttachmentUpload;
 use App\Entity\Parts\Category;
 use App\Entity\Parts\Footprint;
 use App\Entity\Parts\Manufacturer;
@@ -49,14 +50,13 @@ use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Omines\DataTablesBundle\DataTableFactory;
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\ParamConverter;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -301,19 +301,20 @@ class PartController extends AbstractController
             $attachments = $form['attachments'];
             foreach ($attachments as $attachment) {
                 /** @var FormInterface $attachment */
-                $options = [
-                    'secure_attachment' => $attachment['secureFile']->getData(),
-                    'download_url' => $attachment['downloadURL']->getData(),
-                ];
 
                 try {
-                    $this->attachmentSubmitHandler->handleFormSubmit($attachment->getData(), $attachment['file']->getData(), $options);
+                    $this->attachmentSubmitHandler->handleUpload($attachment->getData(), AttachmentUpload::fromAttachmentForm($attachment));
                 } catch (AttachmentDownloadException $attachmentDownloadException) {
                     $this->addFlash(
                         'error',
                         $this->translator->trans('attachment.download_failed').' '.$attachmentDownloadException->getMessage()
                     );
                 }
+            }
+
+            //Ensure that the master picture is still part of the attachments
+            if ($new_part->getMasterPictureAttachment() !== null && !$new_part->getAttachments()->contains($new_part->getMasterPictureAttachment())) {
+                $new_part->setMasterPictureAttachment(null);
             }
 
             $this->commentHelper->setMessage($form['log_comment']->getData());

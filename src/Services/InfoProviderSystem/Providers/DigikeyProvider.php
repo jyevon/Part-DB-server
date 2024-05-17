@@ -175,8 +175,7 @@ class DigikeyProvider implements InfoProviderInterface
             null => null,
             'Active' => ManufacturingStatus::ACTIVE,
             'Obsolete' => ManufacturingStatus::DISCONTINUED,
-            'Discontinued at Digi-Key' => ManufacturingStatus::EOL,
-            'Last Time Buy' => ManufacturingStatus::EOL,
+            'Discontinued at Digi-Key', 'Last Time Buy' => ManufacturingStatus::EOL,
             'Not For New Designs' => ManufacturingStatus::NRFND,
             'Preliminary' => ManufacturingStatus::ANNOUNCED,
             default => ManufacturingStatus::NOT_SET,
@@ -209,6 +208,10 @@ class DigikeyProvider implements InfoProviderInterface
         foreach ($parameters as $parameter) {
             if ($parameter['ParameterId'] === 1291) { //Meaning "Manufacturer given footprint"
                 $footprint_name = $parameter['Value'];
+            }
+
+            if (in_array(trim($parameter['Value']), array('', '-'), true)) {
+                continue;
             }
 
             $results[] = ParameterDTO::parseValueIncludingUnit($parameter['Parameter'], $parameter['Value']);

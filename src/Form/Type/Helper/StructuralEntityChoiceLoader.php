@@ -24,7 +24,6 @@ declare(strict_types=1);
 namespace App\Form\Type\Helper;
 
 use App\Entity\Base\AbstractNamedDBElement;
-use App\Entity\Base\AbstractStructuralDBElement;
 use App\Repository\StructuralDBElementRepository;
 use App\Services\Trees\NodesListBuilder;
 use Doctrine\ORM\EntityManagerInterface;
@@ -155,6 +154,21 @@ class StructuralEntityChoiceLoader extends AbstractChoiceLoader
     {
         $this->starting_element = $starting_element;
         return $this;
+    }
+
+    protected function doLoadChoicesForValues(array $values, ?callable $value): array
+    {
+        // Normalize the data (remove whitespaces around the arrow sign) and leading/trailing whitespaces
+        // This is required so that the value that is generated for an new entity based on its name structure is
+        // the same as the value that is generated for the same entity after it is persisted.
+        // Otherwise, errors occurs that the element could not be found.
+        foreach ($values as &$data) {
+            $data = trim($data);
+            $data = preg_replace('/\s*->\s*/', '->', $data);
+        }
+        unset ($data);
+
+        return $this->loadChoiceList($value)->getChoicesForValues($values);
     }
 
 

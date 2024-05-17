@@ -45,6 +45,9 @@ use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 
 use function in_array;
 
+/**
+ * @phpstan-extends Voter<non-empty-string, Attachment|class-string>
+ */
 final class AttachmentVoter extends Voter
 {
     private const ALLOWED_ATTRIBUTES = ['read', 'view', 'edit', 'delete', 'create', 'show_private', 'show_history'];
@@ -132,7 +135,7 @@ final class AttachmentVoter extends Voter
      *
      * @return bool True if the attribute and subject are supported, false otherwise
      */
-    protected function supports(string $attribute, $subject): bool
+    protected function supports(string $attribute, mixed $subject): bool
     {
         if (is_a($subject, Attachment::class, true)) {
             //These are the allowed attributes

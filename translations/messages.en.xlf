@@ -3130,7 +3130,7 @@ Sub elements will be moved upwards.</target>
       </notes>
       <segment state="translated">
         <source>statistics.parts_instock_sum</source>
-        <target>Sum of all part instocks</target>
+        <target>Sum of all parts stocks</target>
       </segment>
     </unit>
     <unit id="OUVlqDZ" name="statistics.parts_with_price">
@@ -3443,7 +3443,7 @@ Sub elements will be moved upwards.</target>
       </notes>
       <segment state="translated">
         <source>user.username.label</source>
-        <target>User name</target>
+        <target>Username</target>
       </segment>
     </unit>
     <unit id="QK5x4IY" name="group.label">
@@ -9270,7 +9270,7 @@ Element 3</target>
     <unit id="AS9s6LU" name="filter.entity_constraint.operator.EXCLUDING_CHILDREN">
       <segment state="translated">
         <source>filter.entity_constraint.operator.EXCLUDING_CHILDREN</source>
-        <target>Is not (excluding children)</target>
+        <target>Is not (including children)</target>
       </segment>
     </unit>
     <unit id="7.bq.cZ" name="part.filter.dbId">
@@ -12195,6 +12195,18 @@ Please note, that you can not impersonate a disabled user. If you try you will g
       <segment state="translated">
         <source>login.flash.access_denied_please_login</source>
         <target>Access denied! Please log in to continue.</target>
+      </segment>
+    </unit>
+    <unit id="ZY3REby" name="attachment.upload_multiple_files">
+      <segment state="translated">
+        <source>attachment.upload_multiple_files</source>
+        <target>Upload files</target>
+      </segment>
+    </unit>
+    <unit id="OBO.21_" name="entity.mass_creation_flash">
+      <segment state="translated">
+        <source>entity.mass_creation_flash</source>
+        <target>Created %COUNT% entities successfully.</target>
       </segment>
     </unit>
   </file>

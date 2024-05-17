@@ -20,10 +20,7 @@
 
 namespace App\Validator\Constraints;
 
-use App\Entity\Base\AbstractDBElement;
 use App\Validator\UniqueValidatableInterface;
-use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
-use Symfony\Component\Serializer\Serializer;
 use Symfony\Component\Validator\Constraint;
 use Symfony\Component\Validator\ConstraintValidator;
 use Symfony\Component\Validator\Exception\UnexpectedTypeException;
@@ -86,11 +83,7 @@ class UniqueObjectCollectionValidator extends ConstraintValidator
 
     private function getNormalizer(UniqueObjectCollection $unique): callable
     {
-        if (null === $unique->normalizer) {
-            return static fn ($value) => $value;
-        }
-
-        return $unique->normalizer;
+        return $unique->normalizer ?? static fn($value) => $value;
     }
 
     private function reduceElementKeys(array $fields, array $element, UniqueObjectCollection $constraint): array

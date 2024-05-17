@@ -22,8 +22,6 @@ declare(strict_types=1);
 
 namespace App\Entity\PriceInformations;
 
-use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
-use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
@@ -32,7 +30,6 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Serializer\Filter\PropertyFilter;
-use App\ApiPlatform\Filter\LikeFilter;
 use Doctrine\DBAL\Types\Types;
 use App\Entity\Base\AbstractDBElement;
 use App\Entity\Base\TimestampTrait;
@@ -55,8 +52,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity]
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Table('`pricedetails`')]
-#[ORM\Index(name: 'pricedetails_idx_min_discount', columns: ['min_discount_quantity'])]
-#[ORM\Index(name: 'pricedetails_idx_min_discount_price_qty', columns: ['min_discount_quantity', 'price_related_quantity'])]
+#[ORM\Index(columns: ['min_discount_quantity'], name: 'pricedetails_idx_min_discount')]
+#[ORM\Index(columns: ['min_discount_quantity', 'price_related_quantity'], name: 'pricedetails_idx_min_discount_price_qty')]
 #[ApiResource(
     operations: [
         new Get(security: 'is_granted("read", object)'),
@@ -78,9 +75,9 @@ class Pricedetail extends AbstractDBElement implements TimeStampableInterface
     /**
      * @var BigDecimal The price related to the detail. (Given in the selected currency)
      */
-    #[Groups(['extended', 'full', 'pricedetail:read', 'pricedetail:write'])]
+    #[Groups(['extended', 'full', 'import', 'pricedetail:read', 'pricedetail:write'])]
     #[ORM\Column(type: 'big_decimal', precision: 11, scale: 5)]
-    #[BigDecimalPositive()]
+    #[BigDecimalPositive]
     protected BigDecimal $price;
 
     /**
@@ -90,7 +87,7 @@ class Pricedetail extends AbstractDBElement implements TimeStampableInterface
     #[Groups(['extended', 'full', 'import', 'pricedetail:read', 'pricedetail:write'])]
     #[ORM\ManyToOne(targetEntity: Currency::class, inversedBy: 'pricedetails')]
     #[ORM\JoinColumn(name: 'id_currency')]
-    #[Selectable()]
+    #[Selectable]
     protected ?Currency $currency = null;
 
     /**

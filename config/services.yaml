@@ -307,14 +307,10 @@ services:
             $options: '%env(string:PROVIDER_MOUSER_SEARCH_OPTION)%'
             $search_limit: '%env(int:PROVIDER_MOUSER_SEARCH_LIMIT)%'
 
-    ####################################################################################################################
-    # API system
-    ####################################################################################################################
-    App\State\PartDBInfoProvider:
+    App\Services\InfoProviderSystem\Providers\LCSCProvider:
         arguments:
-            $default_uri: '%partdb.default_uri%'
-            $global_locale: '%partdb.locale%'
-            $global_timezone: '%partdb.timezone%'
+            $enabled: '%env(bool:PROVIDER_LCSC_ENABLED)%'
+            $currency: '%env(string:PROVIDER_LCSC_CURRENCY)%'
 
     App\Services\InfoProviderSystem\Providers\StructuredDataProvider:
         arguments:
@@ -337,6 +333,15 @@ services:
             $currency: '%env(string:PROVIDER_REICHELT_CURRENCY)%'
             $net_prices: '%env(bool:PROVIDER_REICHELT_GET_NET_PRICES)%'
             $add_gtin_to_orderno: '%env(bool:PROVIDER_REICHELT_ADD_GTIN_TO_ORDERNO)%'
+
+    ####################################################################################################################
+    # API system
+    ####################################################################################################################
+    App\State\PartDBInfoProvider:
+        arguments:
+            $default_uri: '%partdb.default_uri%'
+            $global_locale: '%partdb.locale%'
+            $global_timezone: '%partdb.timezone%'
 
     ####################################################################################################################
     # EDA system

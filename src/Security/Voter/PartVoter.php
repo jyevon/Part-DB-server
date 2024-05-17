@@ -23,7 +23,6 @@ declare(strict_types=1);
 namespace App\Security\Voter;
 
 use App\Entity\Parts\Part;
-use App\Entity\UserSystem\User;
 use App\Services\UserSystem\VoterHelper;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
@@ -32,6 +31,8 @@ use Symfony\Component\Security\Core\Authorization\Voter\Voter;
  * A Voter that votes on Part entities.
  *
  * See parts permissions for valid operations.
+ *
+ * @phpstan-extends Voter<non-empty-string, Part|class-string>
  */
 final class PartVoter extends Voter
 {

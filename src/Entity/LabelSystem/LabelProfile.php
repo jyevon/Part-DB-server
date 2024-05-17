@@ -42,7 +42,6 @@ declare(strict_types=1);
 namespace App\Entity\LabelSystem;
 
 use App\Entity\Attachments\Attachment;
-use App\Entity\Attachments\AttachmentTypeAttachment;
 use App\Repository\LabelProfileRepository;
 use App\EntityListeners\TreeCacheInvalidationListener;
 use Doctrine\DBAL\Types\Types;
@@ -66,7 +65,7 @@ class LabelProfile extends AttachmentContainingDBElement
     /**
      * @var Collection<int, LabelAttachment>
      */
-    #[ORM\OneToMany(targetEntity: LabelAttachment::class, mappedBy: 'element', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(mappedBy: 'element', targetEntity: LabelAttachment::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     #[ORM\OrderBy(['name' => 'ASC'])]
     protected Collection $attachments;
 

@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace App\Entity\PriceInformations;
 
+use ApiPlatform\Doctrine\Common\Filter\DateFilterInterface;
 use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
 use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
@@ -51,6 +52,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Constraints\Length;
 
 /**
  * Class Orderdetail.
@@ -59,7 +61,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity]
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Table('`orderdetails`')]
-#[ORM\Index(name: 'orderdetails_supplier_part_nr', columns: ['supplierpartnr'])]
+#[ORM\Index(columns: ['supplierpartnr'], name: 'orderdetails_supplier_part_nr')]
 #[ApiResource(
     operations: [
         new Get(security: 'is_granted("read", object)'),
@@ -88,7 +90,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiFilter(PropertyFilter::class)]
 #[ApiFilter(LikeFilter::class, properties: ["supplierpartnr", "supplier_product_url"])]
 #[ApiFilter(BooleanFilter::class, properties: ["obsolete"])]
-#[ApiFilter(DateFilter::class, strategy: DateFilter::EXCLUDE_NULL)]
+#[ApiFilter(DateFilter::class, strategy: DateFilterInterface::EXCLUDE_NULL)]
 #[ApiFilter(OrderFilter::class, properties: ['supplierpartnr', 'id', 'addedDate', 'lastModified'])]
 class Orderdetail extends AbstractDBElement implements TimeStampableInterface, NamedElementInterface
 {
@@ -96,7 +98,7 @@ class Orderdetail extends AbstractDBElement implements TimeStampableInterface, N
 
     #[Assert\Valid]
     #[Groups(['extended', 'full', 'import', 'orderdetail:read', 'orderdetail:write'])]
-    #[ORM\OneToMany(targetEntity: Pricedetail::class, mappedBy: 'orderdetail', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(mappedBy: 'orderdetail', targetEntity: Pricedetail::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     #[ORM\OrderBy(['min_discount_quantity' => 'ASC'])]
     protected Collection $pricedetails;
 
@@ -105,6 +107,7 @@ class Orderdetail extends AbstractDBElement implements TimeStampableInterface, N
      */
     #[Groups(['extended', 'full', 'import', 'orderdetail:read', 'orderdetail:write'])]
     #[ORM\Column(type: Types::STRING)]
+    #[Length(max: 255)]
     protected string $supplierpartnr = '';
 
     /**
@@ -224,6 +227,11 @@ class Orderdetail extends AbstractDBElement implements TimeStampableInterface, N
     public function getObsolete(): bool
     {
         return $this->obsolete;
+    }
+
+    public function isObsolete(): bool
+    {
+        return $this->getObsolete();
     }
 
     /**

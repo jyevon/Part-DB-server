@@ -24,6 +24,8 @@ namespace App\Controller\AdminPages;
 
 use App\DataTables\LogDataTable;
 use App\Entity\Attachments\Attachment;
+use App\Entity\Attachments\AttachmentContainingDBElement;
+use App\Entity\Attachments\AttachmentUpload;
 use App\Entity\Base\AbstractDBElement;
 use App\Entity\Base\AbstractNamedDBElement;
 use App\Entity\Base\AbstractPartsContainingDBElement;
@@ -32,7 +34,6 @@ use App\Entity\Base\PartsContainingRepositoryInterface;
 use App\Entity\LabelSystem\LabelProcessMode;
 use App\Entity\LabelSystem\LabelProfile;
 use App\Entity\Parameters\AbstractParameter;
-use App\Entity\UserSystem\User;
 use App\Exceptions\AttachmentDownloadException;
 use App\Form\AdminPages\ImportType;
 use App\Form\AdminPages\MassCreationForm;
@@ -60,7 +61,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Serializer\Exception\UnexpectedValueException;
-use Symfony\Component\Validator\ConstraintViolationList;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 use function Symfony\Component\Translation\t;
@@ -73,10 +73,11 @@ abstract class BaseAdminController extends AbstractController
     protected string $route_base = '';
     protected string $attachment_class = '';
     protected ?string $parameter_class = '';
+
     /**
      * @var EventDispatcher|EventDispatcherInterface
      */
-    protected $eventDispatcher;
+    protected EventDispatcher|EventDispatcherInterface $eventDispatcher;
 
     public function __construct(protected TranslatorInterface $translator, protected UserPasswordHasherInterface $passwordEncoder,
         protected AttachmentSubmitHandler $attachmentSubmitHandler,
@@ -175,16 +176,10 @@ abstract class BaseAdminController extends AbstractController
                 $attachments = $form['attachments'];
                 foreach ($attachments as $attachment) {
                     /** @var FormInterface $attachment */
-                    $options = [
-                        'secure_attachment' => $attachment['secureFile']->getData(),
-                        'download_url' => $attachment['downloadURL']->getData(),
-                    ];
-
                     try {
-                        $this->attachmentSubmitHandler->handleFormSubmit(
+                        $this->attachmentSubmitHandler->handleUpload(
                             $attachment->getData(),
-                            $attachment['file']->getData(),
-                            $options
+                            AttachmentUpload::fromAttachmentForm($attachment)
                         );
                     } catch (AttachmentDownloadException $attachmentDownloadException) {
                         $this->addFlash(
@@ -193,6 +188,13 @@ abstract class BaseAdminController extends AbstractController
                                 'attachment.download_failed'
                             ).' '.$attachmentDownloadException->getMessage()
                         );
+                    }
+                }
+
+                //Ensure that the master picture is still part of the attachments
+                if ($entity instanceof AttachmentContainingDBElement) {
+                    if ($entity->getMasterPictureAttachment() !== null && !$entity->getAttachments()->contains($entity->getMasterPictureAttachment())) {
+                        $entity->setMasterPictureAttachment(null);
                     }
                 }
 
@@ -264,16 +266,11 @@ abstract class BaseAdminController extends AbstractController
             $attachments = $form['attachments'];
             foreach ($attachments as $attachment) {
                 /** @var FormInterface $attachment */
-                $options = [
-                    'secure_attachment' => $attachment['secureFile']->getData(),
-                    'download_url' => $attachment['downloadURL']->getData(),
-                ];
 
                 try {
-                    $this->attachmentSubmitHandler->handleFormSubmit(
+                    $this->attachmentSubmitHandler->handleUpload(
                         $attachment->getData(),
-                        $attachment['file']->getData(),
-                        $options
+                        AttachmentUpload::fromAttachmentForm($attachment)
                     );
                 } catch (AttachmentDownloadException $attachmentDownloadException) {
                     $this->addFlash(
@@ -284,6 +281,14 @@ abstract class BaseAdminController extends AbstractController
                     );
                 }
             }
+
+            //Ensure that the master picture is still part of the attachments
+            if ($new_entity instanceof AttachmentContainingDBElement) {
+                if ($new_entity->getMasterPictureAttachment() !== null && !$new_entity->getAttachments()->contains($new_entity->getMasterPictureAttachment())) {
+                    $new_entity->setMasterPictureAttachment(null);
+                }
+            }
+
             $this->commentHelper->setMessage($form['log_comment']->getData());
             $em->persist($new_entity);
             $em->flush();
@@ -364,6 +369,10 @@ abstract class BaseAdminController extends AbstractController
                 $em->persist($result);
             }
             $em->flush();
+
+            if (count($results) > 0) {
+            	$this->addFlash('success', t('entity.mass_creation_flash', ['%COUNT%' => count($results)]));
+            }
         }
 
         ret:

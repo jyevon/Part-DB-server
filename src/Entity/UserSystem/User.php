@@ -22,20 +22,18 @@ declare(strict_types=1);
 
 namespace App\Entity\UserSystem;
 
+use ApiPlatform\Doctrine\Common\Filter\DateFilterInterface;
 use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
-use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
-use ApiPlatform\Metadata\Post;
 use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\Serializer\Filter\PropertyFilter;
 use App\ApiPlatform\Filter\LikeFilter;
 use App\Entity\Attachments\Attachment;
-use App\Entity\Attachments\AttachmentTypeAttachment;
 use App\Repository\UserRepository;
 use App\EntityListeners\TreeCacheInvalidationListener;
 use App\Validator\Constraints\NoLockout;
@@ -52,6 +50,7 @@ use Jbtronics\TFAWebauthn\Model\LegacyU2FKeyInterface;
 use Nbgrp\OneloginSamlBundle\Security\User\SamlUserInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Validator\Constraints\Length;
 use Webauthn\PublicKeyCredentialUserEntity;
 use function count;
 use DateTime;
@@ -80,7 +79,7 @@ use Jbtronics\TFAWebauthn\Model\TwoFactorInterface as WebauthnTwoFactorInterface
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\EntityListeners([TreeCacheInvalidationListener::class])]
 #[ORM\Table('`users`')]
-#[ORM\Index(name: 'user_idx_username', columns: ['name'])]
+#[ORM\Index(columns: ['name'], name: 'user_idx_username')]
 #[ORM\AttributeOverrides([
     new ORM\AttributeOverride(name: 'name', column: new ORM\Column(type: Types::STRING, length: 180, unique: true))
 ])]
@@ -100,9 +99,9 @@ use Jbtronics\TFAWebauthn\Model\TwoFactorInterface as WebauthnTwoFactorInterface
 )]
 #[ApiFilter(PropertyFilter::class)]
 #[ApiFilter(LikeFilter::class, properties: ["name", "aboutMe"])]
-#[ApiFilter(DateFilter::class, strategy: DateFilter::EXCLUDE_NULL)]
+#[ApiFilter(DateFilter::class, strategy: DateFilterInterface::EXCLUDE_NULL)]
 #[ApiFilter(OrderFilter::class, properties: ['name', 'id', 'addedDate', 'lastModified'])]
-#[NoLockout()]
+#[NoLockout]
 class User extends AttachmentContainingDBElement implements UserInterface, HasPermissionsInterface, TwoFactorInterface,
                                                             BackupCodeInterface, TrustedDeviceInterface, WebauthnTwoFactorInterface, PreferredProviderInterface, PasswordAuthenticatedUserInterface, SamlUserInterface
 {
@@ -133,8 +132,8 @@ class User extends AttachmentContainingDBElement implements UserInterface, HasPe
      * @var string|null The theme
      */
     #[Groups(['full', 'import', 'user:read'])]
-    #[ORM\Column(type: Types::STRING, name: 'config_theme', nullable: true)]
-    #[ValidTheme()]
+    #[ORM\Column(name: 'config_theme', type: Types::STRING, nullable: true)]
+    #[ValidTheme]
     protected ?string $theme = null;
 
     /**
@@ -143,10 +142,10 @@ class User extends AttachmentContainingDBElement implements UserInterface, HasPe
     #[ORM\Column(type: Types::STRING, nullable: true)]
     protected ?string $pw_reset_token = null;
 
-    #[ORM\Column(type: Types::TEXT, name: 'config_instock_comment_a')]
+    #[ORM\Column(name: 'config_instock_comment_a', type: Types::TEXT)]
     protected string $instock_comment_a = '';
 
-    #[ORM\Column(type: Types::TEXT, name: 'config_instock_comment_w')]
+    #[ORM\Column(name: 'config_instock_comment_w', type: Types::TEXT)]
     protected string $instock_comment_w = '';
 
     /**
@@ -189,7 +188,7 @@ class User extends AttachmentContainingDBElement implements UserInterface, HasPe
      */
     #[Assert\Timezone]
     #[Groups(['full', 'import', 'user:read'])]
-    #[ORM\Column(type: Types::STRING, name: 'config_timezone', nullable: true)]
+    #[ORM\Column(name: 'config_timezone', type: Types::STRING, nullable: true)]
     protected ?string $timezone = '';
 
     /**
@@ -197,7 +196,7 @@ class User extends AttachmentContainingDBElement implements UserInterface, HasPe
      */
     #[Assert\Language]
     #[Groups(['full', 'import', 'user:read'])]
-    #[ORM\Column(type: Types::STRING, name: 'config_language', nullable: true)]
+    #[ORM\Column(name: 'config_language', type: Types::STRING, nullable: true)]
     protected ?string $language = '';
 
     /**
@@ -206,6 +205,7 @@ class User extends AttachmentContainingDBElement implements UserInterface, HasPe
     #[Assert\Email]
     #[Groups(['simple', 'extended', 'full', 'import', 'user:read'])]
     #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    #[Length(max: 255)]
     protected ?string $email = '';
 
     /**
@@ -220,6 +220,7 @@ class User extends AttachmentContainingDBElement implements UserInterface, HasPe
      */
     #[Groups(['simple', 'extended', 'full', 'import', 'user:read'])]
     #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    #[Length(max: 255)]
     protected ?string $department = '';
 
     /**
@@ -227,6 +228,7 @@ class User extends AttachmentContainingDBElement implements UserInterface, HasPe
      */
     #[Groups(['simple', 'extended', 'full', 'import', 'user:read'])]
     #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    #[Length(max: 255)]
     protected ?string $last_name = '';
 
     /**
@@ -234,6 +236,7 @@ class User extends AttachmentContainingDBElement implements UserInterface, HasPe
      */
     #[Groups(['simple', 'extended', 'full', 'import', 'user:read'])]
     #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    #[Length(max: 255)]
     protected ?string $first_name = '';
 
     /**
@@ -310,7 +313,7 @@ class User extends AttachmentContainingDBElement implements UserInterface, HasPe
 
     #[Groups(['simple', 'extended', 'full', 'import'])]
     #[ORM\Embedded(class: 'PermissionData', columnPrefix: 'permissions_')]
-    #[ValidPermission()]
+    #[ValidPermission]
     protected ?PermissionData $permissions = null;
 
     /**

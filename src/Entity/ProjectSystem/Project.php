@@ -22,7 +22,6 @@ declare(strict_types=1);
 
 namespace App\Entity\ProjectSystem;
 
-use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiProperty;
@@ -37,8 +36,6 @@ use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\Serializer\Filter\PropertyFilter;
 use App\ApiPlatform\Filter\LikeFilter;
 use App\Entity\Attachments\Attachment;
-use App\Entity\Attachments\AttachmentTypeAttachment;
-use App\Entity\Parts\Category;
 use App\Repository\Parts\DeviceRepository;
 use App\Validator\Constraints\UniqueObjectCollection;
 use Doctrine\DBAL\Types\Types;
@@ -90,7 +87,7 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 #[ApiFilter(OrderFilter::class, properties: ['name', 'id', 'addedDate', 'lastModified'])]
 class Project extends AbstractStructuralDBElement
 {
-    #[ORM\OneToMany(targetEntity: self::class, mappedBy: 'parent')]
+    #[ORM\OneToMany(mappedBy: 'parent', targetEntity: self::class)]
     #[ORM\OrderBy(['name' => 'ASC'])]
     protected Collection $children;
 
@@ -105,9 +102,9 @@ class Project extends AbstractStructuralDBElement
 
     #[Assert\Valid]
     #[Groups(['extended', 'full'])]
-    #[ORM\OneToMany(targetEntity: ProjectBOMEntry::class, mappedBy: 'project', cascade: ['persist', 'remove'], orphanRemoval: true)]
-    #[UniqueObjectCollection(fields: ['part'], message: 'project.bom_entry.part_already_in_bom')]
-    #[UniqueObjectCollection(fields: ['name'], message: 'project.bom_entry.name_already_in_bom')]
+    #[ORM\OneToMany(mappedBy: 'project', targetEntity: ProjectBOMEntry::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[UniqueObjectCollection(message: 'project.bom_entry.part_already_in_bom', fields: ['part'])]
+    #[UniqueObjectCollection(message: 'project.bom_entry.name_already_in_bom', fields: ['name'])]
     protected Collection $bom_entries;
 
     #[ORM\Column(type: Types::INTEGER)]
@@ -125,7 +122,7 @@ class Project extends AbstractStructuralDBElement
     /**
      * @var Part|null The (optional) part that represents the builds of this project in the stock
      */
-    #[ORM\OneToOne(targetEntity: Part::class, mappedBy: 'built_project', cascade: ['persist'], orphanRemoval: true)]
+    #[ORM\OneToOne(mappedBy: 'built_project', targetEntity: Part::class, cascade: ['persist'], orphanRemoval: true)]
     #[Groups(['project:read', 'project:write'])]
     protected ?Part $build_part = null;
 
@@ -139,7 +136,7 @@ class Project extends AbstractStructuralDBElement
     /**
      * @var Collection<int, ProjectAttachment>
      */
-    #[ORM\OneToMany(targetEntity: ProjectAttachment::class, mappedBy: 'element', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(mappedBy: 'element', targetEntity: ProjectAttachment::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     #[ORM\OrderBy(['name' => 'ASC'])]
     #[Groups(['project:read', 'project:write'])]
     protected Collection $attachments;
@@ -151,7 +148,7 @@ class Project extends AbstractStructuralDBElement
 
     /** @var Collection<int, ProjectParameter>
      */
-    #[ORM\OneToMany(targetEntity: ProjectParameter::class, mappedBy: 'element', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(mappedBy: 'element', targetEntity: ProjectParameter::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     #[ORM\OrderBy(['group' => 'ASC', 'name' => 'ASC'])]
     #[Groups(['project:read', 'project:write'])]
     protected Collection $parameters;

@@ -21,7 +21,6 @@
 namespace App\Services\UserSystem\TFA;
 
 use Scheb\TwoFactorBundle\Model\Google\TwoFactorInterface;
-use Scheb\TwoFactorBundle\Security\TwoFactor\Provider\Google\GoogleAuthenticator;
 use Scheb\TwoFactorBundle\Security\TwoFactor\Provider\Google\GoogleAuthenticatorInterface;
 use Symfony\Component\DependencyInjection\Attribute\AsDecorator;
 use Symfony\Component\DependencyInjection\Attribute\AutowireDecorated;
@@ -33,8 +32,8 @@ class DecoratedGoogleAuthenticator implements GoogleAuthenticatorInterface
 
     public function __construct(
         #[AutowireDecorated]
-        private GoogleAuthenticatorInterface $inner,
-        private RequestStack $requestStack)
+        private readonly GoogleAuthenticatorInterface $inner,
+        private readonly RequestStack $requestStack)
     {
 
     }

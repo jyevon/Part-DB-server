@@ -42,11 +42,13 @@ declare(strict_types=1);
 namespace App\Security\Voter;
 
 use App\Entity\LabelSystem\LabelProfile;
-use App\Entity\UserSystem\User;
 use App\Services\UserSystem\VoterHelper;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 
+/**
+ * @phpstan-extends Voter<non-empty-string, LabelProfile|class-string>
+ */
 final class LabelProfileVoter extends Voter
 {
     protected const MAPPING = [

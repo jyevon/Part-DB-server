@@ -341,5 +341,11 @@
         <target>This vendor barcode value was already used in another lot. The barcode must be unique!</target>
       </segment>
     </unit>
+    <unit id="o1qmPUm" name="validator.year_2038_bug_on_32bit">
+      <segment state="translated">
+        <source>validator.year_2038_bug_on_32bit</source>
+        <target>Due to technical limitations, it is not possible to select dates after the 2038-01-19 on 32-bit systems!</target>
+      </segment>
+    </unit>
   </file>
 </xliff>

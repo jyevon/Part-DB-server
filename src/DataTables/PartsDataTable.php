@@ -22,21 +22,9 @@ declare(strict_types=1);
 
 namespace App\DataTables;
 
-use App\DataTables\Adapters\FetchResultsAtOnceORMAdapter;
 use App\DataTables\Adapters\TwoStepORMAdapter;
-use App\DataTables\Column\EnumColumn;
-use App\DataTables\Helpers\ColumnSortHelper;
-use App\Doctrine\Helpers\FieldHelper;
-use App\Entity\Parts\ManufacturingStatus;
-use Doctrine\ORM\Mapping\ClassMetadata;
-use Doctrine\ORM\Mapping\ClassMetadataInfo;
-use Doctrine\ORM\Query;
-use Doctrine\ORM\Tools\Pagination\Paginator;
-use Omines\DataTablesBundle\Adapter\Doctrine\Event\ORMAdapterQueryEvent;
-use Omines\DataTablesBundle\Adapter\Doctrine\ORMAdapterEvents;
-use Symfony\Bundle\SecurityBundle\Security;
-use App\Entity\Parts\StorageLocation;
 use App\DataTables\Column\EntityColumn;
+use App\DataTables\Column\EnumColumn;
 use App\DataTables\Column\IconLinkColumn;
 use App\DataTables\Column\LocaleDateTimeColumn;
 use App\DataTables\Column\MarkdownColumn;
@@ -48,16 +36,22 @@ use App\DataTables\Column\SIUnitNumberColumn;
 use App\DataTables\Column\TagsColumn;
 use App\DataTables\Filters\PartFilter;
 use App\DataTables\Filters\PartSearchFilter;
+use App\DataTables\Helpers\ColumnSortHelper;
 use App\DataTables\Helpers\PartDataTableHelper;
+use App\Doctrine\Helpers\FieldHelper;
+use App\Entity\Parts\ManufacturingStatus;
 use App\Entity\Parts\Part;
 use App\Entity\Parts\PartLot;
-use App\Services\Formatters\AmountFormatter;
+use App\Entity\ProjectSystem\Project;
 use App\Services\EntityURLGenerator;
+use App\Services\Formatters\AmountFormatter;
+use Doctrine\ORM\AbstractQuery;
 use Doctrine\ORM\QueryBuilder;
 use Omines\DataTablesBundle\Adapter\Doctrine\ORM\SearchCriteriaProvider;
 use Omines\DataTablesBundle\Column\TextColumn;
 use Omines\DataTablesBundle\DataTable;
 use Omines\DataTablesBundle\DataTableTypeInterface;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -127,18 +121,21 @@ final class PartsDataTable implements DataTableTypeInterface
             ->add('category', EntityColumn::class, [
                 'label' => $this->translator->trans('part.table.category'),
                 'property' => 'category',
+                'orderField' => '_category.name'
             ])
             ->add('footprint', EntityColumn::class, [
                 'property' => 'footprint',
                 'label' => $this->translator->trans('part.table.footprint'),
+                'orderField' => '_footprint.name'
             ])
             ->add('manufacturer', EntityColumn::class, [
                 'property' => 'manufacturer',
                 'label' => $this->translator->trans('part.table.manufacturer'),
+                'orderField' => '_manufacturer.name'
             ])
             ->add('storelocation', TextColumn::class, [
                 'label' => $this->translator->trans('part.table.storeLocations'),
-                'orderField' => 'storelocations.name',
+                'orderField' => '_storelocations.name',
                 'render' => fn ($value, Part $context) => $this->partDataTableHelper->renderStorageLocations($context),
             ], alias: 'storage_location')
             ->add('amount', TextColumn::class, [
@@ -154,6 +151,7 @@ final class PartsDataTable implements DataTableTypeInterface
             ->add('partUnit', TextColumn::class, [
                 'field' => 'partUnit.name',
                 'label' => $this->translator->trans('part.table.partUnit'),
+                'orderField' => '_partUnit.name'
             ])
             ->add('addedDate', LocaleDateTimeColumn::class, [
                 'label' => $this->translator->trans('part.table.addedDate'),
@@ -190,7 +188,37 @@ final class PartsDataTable implements DataTableTypeInterface
             ])
             ->add('attachments', PartAttachmentsColumn::class, [
                 'label' => $this->translator->trans('part.table.attachments'),
-            ])
+            ]);
+
+        //Add a column to list the projects where the part is used, when the user has the permission to see the projects
+        if ($this->security->isGranted('read', Project::class)) {
+            $this->csh->add('projects', TextColumn::class, [
+                'label' => $this->translator->trans('project.labelp'),
+                'render' => function ($value, Part $context): string {
+                    //Only show the first 5 projects names
+                    $projects = $context->getProjects();
+                    $tmp = "";
+
+                    $max = 5;
+
+                    for ($i = 0; $i < min($max, count($projects)); $i++) {
+                        $url = $this->urlGenerator->infoURL($projects[$i]);
+                        $tmp .= sprintf('<a href="%s">%s</a>', $url, htmlspecialchars($projects[$i]->getName()));
+                        if ($i < count($projects) - 1) {
+                            $tmp .= ", ";
+                        }
+                    }
+
+                    if (count($projects) > $max) {
+                        $tmp .= ", + ".(count($projects) - $max);
+                    }
+
+                    return $tmp;
+                }
+            ]);
+        }
+
+        $this->csh
             ->add('edit', IconLinkColumn::class, [
                 'label' => $this->translator->trans('part.table.edit'),
                 'href' => fn($value, Part $context) => $this->urlGenerator->editURL($context),
@@ -207,13 +235,17 @@ final class PartsDataTable implements DataTableTypeInterface
                 'filter_query' => $this->getFilterQuery(...),
                 'detail_query' => $this->getDetailQuery(...),
                 'entity' => Part::class,
-                'hydrate' => Query::HYDRATE_OBJECT,
+                'hydrate' => AbstractQuery::HYDRATE_OBJECT,
+                //Use the simple total query, as we just want to get the total number of parts without any conditions
+                //For this the normal query would be pretty slow
+                'simple_total_query' => true,
                 'criteria' => [
                     function (QueryBuilder $builder) use ($options): void {
                         $this->buildCriteria($builder, $options);
                     },
                     new SearchCriteriaProvider(),
                 ],
+                'query_modifier' => $this->addJoins(...),
             ]);
     }
 
@@ -223,33 +255,14 @@ final class PartsDataTable implements DataTableTypeInterface
         /* In the filter query we only select the IDs. The fetching of the full entities is done in the detail query.
          * We only need to join the entities here, so we can filter by them.
          * The filter conditions are added to this QB in the buildCriteria method.
+         *
+         * The amountSum field and the joins are dynmically added by the addJoins method, if the fields are used in the query.
+         * This improves the performance, as we do not need to join all tables, if we do not need them.
          */
         $builder
             ->select('part.id')
             ->addSelect('part.minamount AS HIDDEN minamount')
-            //Calculate amount sum using a subquery, so we can filter and sort by it
-            ->addSelect(
-                '(
-                    SELECT IFNULL(SUM(partLot.amount), 0.0)
-                    FROM '.PartLot::class.' partLot
-                    WHERE partLot.part = part.id
-                    AND partLot.instock_unknown = false
-                    AND (partLot.expiration_date IS NULL OR partLot.expiration_date > CURRENT_DATE())
-                ) AS HIDDEN amountSum'
-            )
             ->from(Part::class, 'part')
-            ->leftJoin('part.category', 'category')
-            ->leftJoin('part.master_picture_attachment', 'master_picture_attachment')
-            ->leftJoin('part.partLots', 'partLots')
-            ->leftJoin('partLots.storage_location', 'storelocations')
-            ->leftJoin('part.footprint', 'footprint')
-            ->leftJoin('footprint.master_picture_attachment', 'footprint_attachment')
-            ->leftJoin('part.manufacturer', 'manufacturer')
-            ->leftJoin('part.orderdetails', 'orderdetails')
-            ->leftJoin('orderdetails.supplier', 'suppliers')
-            ->leftJoin('part.attachments', 'attachments')
-            ->leftJoin('part.partUnit', 'partUnit')
-            ->leftJoin('part.parameters', 'parameters')
 
             //This must be the only group by, or the paginator will not work correctly
             ->addGroupBy('part.id');
@@ -257,7 +270,7 @@ final class PartsDataTable implements DataTableTypeInterface
 
     private function getDetailQuery(QueryBuilder $builder, array $filter_results): void
     {
-        $ids = array_map(fn($row) => $row['id'], $filter_results);
+        $ids = array_map(static fn($row) => $row['id'], $filter_results);
 
         /*
          * In this query we take the IDs which were filtered, paginated and sorted in the filter query, and fetch the
@@ -265,6 +278,8 @@ final class PartsDataTable implements DataTableTypeInterface
          * We can do complex fetch joins, as we do not need to filter or sort here (which would kill the performance).
          * The only condition should be for the IDs.
          * It is important that elements are ordered the same way, as the IDs are passed, or ordering will be wrong.
+         *
+         * We do not require the subqueries like amountSum here, as it is not used to render the table (and only for sorting)
          */
         $builder
             ->select('part')
@@ -278,16 +293,6 @@ final class PartsDataTable implements DataTableTypeInterface
             ->addSelect('orderdetails')
             ->addSelect('attachments')
             ->addSelect('storelocations')
-            //Calculate amount sum using a subquery, so we can filter and sort by it
-            ->addSelect(
-                '(
-                    SELECT IFNULL(SUM(partLot.amount), 0.0)
-                    FROM '.PartLot::class.' partLot
-                    WHERE partLot.part = part.id
-                    AND partLot.instock_unknown = false
-                    AND (partLot.expiration_date IS NULL OR partLot.expiration_date > CURRENT_DATE())
-                ) AS HIDDEN amountSum'
-            )
             ->from(Part::class, 'part')
             ->leftJoin('part.category', 'category')
             ->leftJoin('part.master_picture_attachment', 'master_picture_attachment')
@@ -321,6 +326,68 @@ final class PartsDataTable implements DataTableTypeInterface
 
         //Get the results in the same order as the IDs were passed
         FieldHelper::addOrderByFieldParam($builder, 'part.id', 'ids');
+    }
+
+    /**
+     * This function is called right before the filter query is executed.
+     * We use it to dynamically add joins to the query, if the fields are used in the query.
+     * @param  QueryBuilder  $builder
+     * @return QueryBuilder
+     */
+    private function addJoins(QueryBuilder $builder): QueryBuilder
+    {
+        //Check if the query contains certain conditions, for which we need to add additional joins
+        //The join fields get prefixed with an underscore, so we can check if they are used in the query easy without confusing them for a part subfield
+        $dql = $builder->getDQL();
+
+        //Add the amountSum field, if it is used in the query
+        if (str_contains($dql, 'amountSum')) {
+            //Calculate amount sum using a subquery, so we can filter and sort by it
+            $builder->addSelect(
+                '(
+                    SELECT IFNULL(SUM(partLot.amount), 0.0)
+                    FROM '.PartLot::class.' partLot
+                    WHERE partLot.part = part.id
+                    AND partLot.instock_unknown = false
+                    AND (partLot.expiration_date IS NULL OR partLot.expiration_date > CURRENT_DATE())
+                ) AS HIDDEN amountSum'
+            );
+        }
+
+        if (str_contains($dql, '_category')) {
+            $builder->leftJoin('part.category', '_category');
+        }
+        if (str_contains($dql, '_master_picture_attachment')) {
+            $builder->leftJoin('part.master_picture_attachment', '_master_picture_attachment');
+        }
+        if (str_contains($dql, '_partLots') || str_contains($dql, '_storelocations')) {
+            $builder->leftJoin('part.partLots', '_partLots');
+            $builder->leftJoin('_partLots.storage_location', '_storelocations');
+        }
+        if (str_contains($dql, '_footprint')) {
+            $builder->leftJoin('part.footprint', '_footprint');
+        }
+        if (str_contains($dql, '_manufacturer')) {
+            $builder->leftJoin('part.manufacturer', '_manufacturer');
+        }
+        if (str_contains($dql, '_orderdetails') || str_contains($dql, '_suppliers')) {
+            $builder->leftJoin('part.orderdetails', '_orderdetails');
+            $builder->leftJoin('_orderdetails.supplier', '_suppliers');
+        }
+        if (str_contains($dql, '_attachments')) {
+            $builder->leftJoin('part.attachments', '_attachments');
+        }
+        if (str_contains($dql, '_partUnit')) {
+            $builder->leftJoin('part.partUnit', '_partUnit');
+        }
+        if (str_contains($dql, '_parameters')) {
+            $builder->leftJoin('part.parameters', '_parameters');
+        }
+        if (str_contains($dql, '_projectBomEntries')) {
+            $builder->leftJoin('part.project_bom_entries', '_projectBomEntries');
+        }
+
+        return $builder;
     }
 
     private function buildCriteria(QueryBuilder $builder, array $options): void

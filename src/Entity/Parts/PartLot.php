@@ -22,6 +22,7 @@ declare(strict_types=1);
 
 namespace App\Entity\Parts;
 
+use ApiPlatform\Doctrine\Common\Filter\DateFilterInterface;
 use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
 use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
@@ -36,7 +37,7 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Serializer\Filter\PropertyFilter;
 use App\ApiPlatform\Filter\LikeFilter;
-use App\Repository\PartLotRepository;
+use App\Validator\Constraints\Year2038BugWorkaround;
 use Doctrine\DBAL\Types\Types;
 use App\Entity\Base\AbstractDBElement;
 use App\Entity\Base\TimestampTrait;
@@ -51,6 +52,7 @@ use Exception;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 /**
@@ -80,7 +82,7 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 )]
 #[ApiFilter(PropertyFilter::class)]
 #[ApiFilter(LikeFilter::class, properties: ["description", "comment"])]
-#[ApiFilter(DateFilter::class, strategy: DateFilter::EXCLUDE_NULL)]
+#[ApiFilter(DateFilter::class, strategy: DateFilterInterface::EXCLUDE_NULL)]
 #[ApiFilter(BooleanFilter::class, properties: ['instock_unknown', 'needs_refill'])]
 #[ApiFilter(RangeFilter::class, properties: ['amount'])]
 #[ApiFilter(OrderFilter::class, properties: ['description', 'comment', 'addedDate', 'lastModified'])]
@@ -107,7 +109,8 @@ class PartLot extends AbstractDBElement implements TimeStampableInterface, Named
      *                Set to null, if the lot can be used indefinitely.
      */
     #[Groups(['extended', 'full', 'import', 'part_lot:read', 'part_lot:write'])]
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, name: 'expiration_date', nullable: true)]
+    #[ORM\Column(name: 'expiration_date', type: Types::DATETIME_MUTABLE, nullable: true)]
+    #[Year2038BugWorkaround]
     protected ?\DateTimeInterface $expiration_date = null;
 
     /**
@@ -116,7 +119,7 @@ class PartLot extends AbstractDBElement implements TimeStampableInterface, Named
     #[Groups(['simple', 'extended', 'full', 'import', 'part_lot:read', 'part_lot:write'])]
     #[ORM\ManyToOne(targetEntity: StorageLocation::class, fetch: 'EAGER')]
     #[ORM\JoinColumn(name: 'id_store_location')]
-    #[Selectable()]
+    #[Selectable]
     protected ?StorageLocation $storage_location = null;
 
     /**
@@ -165,6 +168,7 @@ class PartLot extends AbstractDBElement implements TimeStampableInterface, Named
      */
     #[ORM\Column(type: Types::STRING, nullable: true)]
     #[Groups(['part_lot:read', 'part_lot:write'])]
+    #[Length(max: 255)]
     protected ?string $vendor_barcode = null;
 
     public function __clone()

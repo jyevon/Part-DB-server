@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-use App\Entity\Base\AbstractDBElement;
 use App\Entity\Base\AbstractNamedDBElement;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -32,7 +31,7 @@ use League\OAuth2\Client\Token\AccessTokenInterface;
 /**
  * This entity represents a OAuth token pair (access and refresh token), for an application
  */
-#[ORM\Entity()]
+#[ORM\Entity]
 #[ORM\Table(name: 'oauth_tokens')]
 #[ORM\UniqueConstraint(name: 'oauth_tokens_unique_name', columns: ['name'])]
 #[ORM\Index(columns: ['name'], name: 'oauth_tokens_name_idx')]

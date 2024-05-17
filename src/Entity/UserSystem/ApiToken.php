@@ -28,16 +28,16 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\OpenApi\Model\Operation;
 use ApiPlatform\Serializer\Filter\PropertyFilter;
-use App\Entity\Base\AbstractNamedDBElement;
 use App\Entity\Base\TimestampTrait;
 use App\Entity\Contracts\TimeStampableInterface;
 use App\Repository\UserSystem\ApiTokenRepository;
 use App\State\CurrentApiTokenProvider;
-use App\State\PartDBInfoProvider;
+use App\Validator\Constraints\Year2038BugWorkaround;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\NotBlank;
 
 #[ORM\Entity(repositoryClass: ApiTokenRepository::class)]
@@ -66,6 +66,7 @@ class ApiToken implements TimeStampableInterface
     protected int $id;
 
     #[ORM\Column(type: Types::STRING)]
+    #[Length(max: 255)]
     #[NotBlank]
     #[Groups('token:read')]
     protected string $name = '';
@@ -76,6 +77,7 @@ class ApiToken implements TimeStampableInterface
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     #[Groups('token:read')]
+    #[Year2038BugWorkaround]
     private ?\DateTimeInterface $valid_until;
 
     #[ORM\Column(length: 68, unique: true)]

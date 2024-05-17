@@ -23,12 +23,8 @@ declare(strict_types=1);
 
 namespace App\DataTables\Adapters;
 
-use Doctrine\ORM\AbstractQuery;
 use Doctrine\ORM\Query;
-use Doctrine\ORM\Query\Expr\Select;
-use Doctrine\ORM\Query\ResultSetMapping;
 use Doctrine\ORM\QueryBuilder;
-use Doctrine\ORM\Tools\Pagination\CountOutputWalker;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
 use Omines\DataTablesBundle\Adapter\AdapterQuery;
@@ -54,6 +50,8 @@ class TwoStepORMAdapter extends ORMAdapter
     private \Closure $detailQueryCallable;
 
     private bool $use_simple_total = false;
+
+    private \Closure|null $query_modifier;
 
     public function __construct(ManagerRegistry $registry = null)
     {
@@ -81,6 +79,10 @@ class TwoStepORMAdapter extends ORMAdapter
          */
         $resolver->setDefault('simple_total_query', false);
 
+        //Add the possibility of a closure to modify the query builder before the query is executed
+        $resolver->setDefault('query_modifier', null);
+        $resolver->setAllowedTypes('query_modifier', ['null', \Closure::class]);
+
     }
 
     protected function afterConfiguration(array $options): void
@@ -88,6 +90,7 @@ class TwoStepORMAdapter extends ORMAdapter
         parent::afterConfiguration($options);
         $this->detailQueryCallable = $options['detail_query'];
         $this->use_simple_total = $options['simple_total_query'];
+        $this->query_modifier = $options['query_modifier'];
     }
 
     protected function prepareQuery(AdapterQuery $query): void
@@ -128,6 +131,10 @@ class TwoStepORMAdapter extends ORMAdapter
 
     protected function getCount(QueryBuilder $queryBuilder, $identifier): int
     {
+        if ($this->query_modifier !== null) {
+            $queryBuilder = $this->query_modifier->__invoke(clone $queryBuilder);
+        }
+
         //Check if the queryBuilder is having a HAVING clause, which would make the count query invalid
         if (empty($queryBuilder->getDQLPart('having'))) {
             //If not, we can use the simple count query
@@ -146,7 +153,7 @@ class TwoStepORMAdapter extends ORMAdapter
         $state = $query->getState();
 
         // Apply definitive view state for current 'page' of the table
-        foreach ($state->getOrderBy() as list($column, $direction)) {
+        foreach ($state->getOrderBy() as [$column, $direction]) {
             /** @var AbstractColumn $column */
             if ($column->isOrderable()) {
                 $builder->addOrderBy($column->getOrderField(), $direction);
@@ -157,6 +164,11 @@ class TwoStepORMAdapter extends ORMAdapter
                 ->setFirstResult($state->getStart())
                 ->setMaxResults($state->getLength())
             ;
+        }
+
+        //Apply the query modifier, if set
+        if ($this->query_modifier !== null) {
+            $builder = $this->query_modifier->__invoke($builder);
         }
 
         $id_query = $builder->getQuery();

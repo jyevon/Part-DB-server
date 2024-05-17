@@ -26,11 +26,9 @@ namespace App\Controller;
 use App\Entity\Parts\Category;
 use App\Entity\Parts\Part;
 use App\Services\EDA\KiCadHelper;
-use App\Services\Trees\NodesListBuilder;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/kicad-api/v1')]
 class KiCadApiController extends AbstractController

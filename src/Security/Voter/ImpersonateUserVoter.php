@@ -24,12 +24,16 @@ declare(strict_types=1);
 namespace App\Security\Voter;
 
 use App\Entity\UserSystem\User;
-use App\Services\UserSystem\PermissionManager;
 use App\Services\UserSystem\VoterHelper;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 use Symfony\Component\Security\Core\User\UserInterface;
 
+/**
+ * This voter implements a virtual role, which can be used if the user has any permission set to allowed.
+ * We use this to restrict access to the homepage.
+ * @phpstan-extends Voter<non-empty-string, User>
+ */
 final class ImpersonateUserVoter extends Voter
 {
 

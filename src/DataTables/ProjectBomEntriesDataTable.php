@@ -25,7 +25,6 @@ namespace App\DataTables;
 use App\DataTables\Column\EntityColumn;
 use App\DataTables\Column\LocaleDateTimeColumn;
 use App\DataTables\Column\MarkdownColumn;
-use App\DataTables\Column\SelectColumn;
 use App\DataTables\Helpers\PartDataTableHelper;
 use App\Entity\Attachments\Attachment;
 use App\Entity\Parts\Part;
@@ -97,7 +96,7 @@ class ProjectBomEntriesDataTable implements DataTableTypeInterface
                     }
 
                     //@phpstan-ignore-next-line
-                    throw new \Exception('This should never happen!');
+                    throw new \RuntimeException('This should never happen!');
                 },
             ])
             ->add('ipn', TextColumn::class, [

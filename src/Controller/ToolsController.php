@@ -22,18 +22,15 @@ declare(strict_types=1);
  */
 namespace App\Controller;
 
-use App\Services\Attachments\AttachmentPathResolver;
 use App\Services\Attachments\AttachmentSubmitHandler;
 use App\Services\Attachments\AttachmentURLGenerator;
 use App\Services\Attachments\BuiltinAttachmentsFinder;
 use App\Services\Misc\GitVersionInfo;
 use App\Services\Misc\DBInfoHelper;
 use App\Services\System\UpdateAvailableManager;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Component\Routing\Generator\UrlGenerator;
+use Symfony\Component\Routing\Attribute\Route;
 
 #[Route(path: '/tools')]
 class ToolsController extends AbstractController
@@ -80,10 +77,14 @@ class ToolsController extends AbstractController
             'php_version' => PHP_VERSION,
             'php_uname' => php_uname('a'),
             'php_sapi' => PHP_SAPI,
+            'php_bit_size' => PHP_INT_SIZE * 8,
             'php_extensions' => [...get_loaded_extensions()],
             'php_opcache_enabled' => ini_get('opcache.enable'),
             'php_upload_max_filesize' => ini_get('upload_max_filesize'),
             'php_post_max_size' => ini_get('post_max_size'),
+            'kernel_runtime_environment' => $this->getParameter('kernel.runtime_environment'),
+            'kernel_runtime_mode' => $this->getParameter('kernel.runtime_mode'),
+            'kernel_runtime' => $_SERVER['APP_RUNTIME'] ?? $_ENV['APP_RUNTIME'] ?? 'Symfony\\Component\\Runtime\\SymfonyRuntime',
 
             //DB section
             'db_type' => $DBInfoHelper->getDatabaseType() ?? 'Unknown',
@@ -105,7 +106,7 @@ class ToolsController extends AbstractController
         $this->denyAccessUnlessGranted('@tools.builtin_footprints_viewer');
 
         $grouped_footprints = $builtinAttachmentsFinder->getListOfFootprintsGroupedByFolder();
-        $grouped_footprints = array_map(fn($group) => array_map(fn($placeholder_filepath) => [
+        $grouped_footprints = array_map(static fn($group) => array_map(static fn($placeholder_filepath) => [
             'filename' => basename((string) $placeholder_filepath),
             'assets_path' => $urlGenerator->placeholderPathToAssetPath($placeholder_filepath),
         ], $group), $grouped_footprints);

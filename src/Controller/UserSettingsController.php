@@ -36,7 +36,6 @@ use App\Services\UserSystem\TFA\BackupCodeManager;
 use App\Services\UserSystem\UserAvatarHelper;
 use Doctrine\ORM\EntityManagerInterface;
 use RuntimeException;
-use Scheb\TwoFactorBundle\Security\TwoFactor\Provider\Google\GoogleAuthenticator;
 use Scheb\TwoFactorBundle\Security\TwoFactor\Provider\Google\GoogleAuthenticatorInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -53,17 +52,14 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Validator\Constraints\UserPassword;
 use Symfony\Component\Validator\Constraints\Length;
 
 #[Route(path: '/user')]
 class UserSettingsController extends AbstractController
 {
-    /**
-     * @var EventDispatcher|EventDispatcherInterface
-     */
-    protected $eventDispatcher;
+    protected EventDispatcher|EventDispatcherInterface $eventDispatcher;
 
     public function __construct(protected bool $demo_mode, EventDispatcherInterface $eventDispatcher)
     {

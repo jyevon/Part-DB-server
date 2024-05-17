@@ -45,12 +45,12 @@ use App\Services\UserSystem\VoterHelper;
 use Symfony\Bundle\SecurityBundle\Security;
 use App\Entity\Parts\Part;
 use App\Entity\PriceInformations\Orderdetail;
-use App\Entity\UserSystem\User;
-use App\Services\UserSystem\PermissionManager;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 
+/**
+ * @phpstan-extends Voter<non-empty-string, Orderdetail|class-string>
+ */
 final class OrderdetailVoter extends Voter
 {
     public function __construct(private readonly Security $security, private readonly VoterHelper $helper)

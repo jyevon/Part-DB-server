@@ -22,7 +22,6 @@ declare(strict_types=1);
 
 namespace App\Security\Voter;
 
-use App\Entity\UserSystem\User;
 use App\Services\UserSystem\VoterHelper;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
@@ -31,6 +30,7 @@ use Symfony\Component\Security\Core\Authorization\Voter\Voter;
  * This voter allows you to directly check permissions from the permission structure, without passing an object.
  * This use the syntax like "@permission.op"
  * However you should use the "normal" object based voters if possible, because they are needed for a future ACL system.
+ * @phpstan-extends Voter<non-empty-string, null>
  */
 final class PermissionVoter extends Voter
 {
@@ -61,7 +61,7 @@ final class PermissionVoter extends Voter
      *
      * @return bool True if the attribute and subject are supported, false otherwise
      */
-    protected function supports(string $attribute, $subject): bool
+    protected function supports(string $attribute, mixed $subject): bool
     {
         //Check if the attribute has the form @permission.operation
         if (preg_match('#^@\\w+\\.\\w+$#', $attribute)) {
