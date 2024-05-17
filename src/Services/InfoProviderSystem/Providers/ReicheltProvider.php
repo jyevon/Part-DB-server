@@ -30,6 +30,7 @@ class ReicheltProvider extends StructuredDataProvider
         private readonly bool $net_prices, private readonly bool $add_gtin_to_orderno)
     {
         parent::__construct($httpClient, $enable, null, $add_gtin_to_orderno);
+        // TODO map ISO country codes to Reichelt's codes using php match syntax? https://www.php.net/manual/en/control-structures.match.php
     }
 
     public function getProviderInfo(): array
@@ -132,6 +133,7 @@ class ReicheltProvider extends StructuredDataProvider
             } // Factory number & Package weight have no 'name' but would be useful ...
 
             // Parse known number formats
+            // TODO use use parseValueField or parseValueIncludingUnit within ParameterDTO?
             $min = null;
             $typ = null;
             $max = null;
@@ -253,6 +255,8 @@ class ReicheltProvider extends StructuredDataProvider
 
             $link = $node->firstChild;
             $href = $link->attributes->getNamedItem('href')->textContent;
+            // TODO links now take an extra redirect step that messes up Part-DB's file name and type regongnition, e.g. https://www.reichelt.de/index.html?ACTION=7&LA=3&OPEN=0&INDEX=0&FILENAME=A100%2FAOD409_SPEC.pdf
+            // => follow link to retrieve redirection end URL?
             if($href === null)  continue;
 
             $datasheetDTOs[] = new FileDTO(self::BASE_URL . $href, $link->textContent);

@@ -113,7 +113,7 @@ class PollinProvider extends StructuredDataProvider
 
         $parameters = [];
         $footprint = null;
-        foreach($speclines as $line) {
+        foreach($speclines as $line) {//TODO test with https://www.pollin.de/p/spannungsregler-bausatz-810029 ; ... and decimal , seemed to be a problem there ...
             $name = '';
 
             // Parse property name
@@ -137,6 +137,7 @@ class PollinProvider extends StructuredDataProvider
             }
 
             // Parse known number formats
+            // TODO use use parseValueField or parseValueIncludingUnit within ParameterDTO?
             $min = null;
             $typ = null;
             $max = null;

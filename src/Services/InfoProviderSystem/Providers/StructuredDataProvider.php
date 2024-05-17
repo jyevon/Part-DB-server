@@ -255,6 +255,7 @@ class StructuredDataProvider implements InfoProviderInterface
         if($product->weight instanceof Schema\QuantitativeValue) { // not tested!
             $tmp = $product->weight->value->getFirstNonEmptyStringValue();
             if(is_numeric($tmp)) {
+                // TODO use match syntax instead? https://www.php.net/manual/en/control-structures.match.php
                 switch ($product->weight->unitCode->getFirstNonEmptyStringValue()) {
                     // units as in http://www.unece.org/fileadmin/DAM/cefact/recommendations/rec20/rec20_Rev9e_2014.xls
                     case 'KGM': // kg
@@ -347,6 +348,7 @@ class StructuredDataProvider implements InfoProviderInterface
         //Parse images
         $images = [];
         foreach($product->image as $image) {
+            // TODO parse https://schema.org/ImageObject for https://www.hornbach.de/p/brennenstuhl-steckdosenadapter-mit-ueberspannungsschutz-adapter-als-blitzschutz-fuer-elektrogeraete-anthrazit/10109651/
             if(empty($image))  continue;
 
             $images[] = new FileDTO((string) $image);
