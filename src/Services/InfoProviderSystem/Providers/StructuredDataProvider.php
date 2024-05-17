@@ -41,7 +41,7 @@ class StructuredDataProvider implements InfoProviderInterface
             'name' => 'Structured Data (by URL)',
             'description' => 'This provider calls, e.g. a product page, by URL and allows to import embedded machine-readable data as a part.',
             'url' => 'https://schema.org/',
-            'disabled_help' => 'Set the PROVIDER_STRUCDATA_ENABLE env option.'
+            'disabled_help' => 'Set the PROVIDER_STRUCDATA_ENABLED env option to 1 (or true).'
         ];
     }
 
@@ -61,7 +61,7 @@ class StructuredDataProvider implements InfoProviderInterface
 
     public function isActive(): bool
     {
-        return !empty($this->enable);
+        return $this->enable;
     }
 
     /**
@@ -309,8 +309,6 @@ class StructuredDataProvider implements InfoProviderInterface
                 $quantity = $offer->eligibleQuantity->getFirstValue();
                 
                 if (is_string($price)) {
-                    if($priceCurrency == "US$")  $priceCurrency = 'USD'; // for lcsc.com (ISO codes are seemingly overrated ...)
-
                     $prices[] = new PriceDTO(
                         minimum_discount_amount: ($quantity !== null) ? $quantity->minValue->getFirstNonEmptyStringValue() : 1,
                         price: str_replace(',', '', (string) $price) ?? '0',

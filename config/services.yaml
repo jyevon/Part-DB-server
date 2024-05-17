@@ -314,20 +314,20 @@ services:
 
     App\Services\InfoProviderSystem\Providers\StructuredDataProvider:
         arguments:
-            $enable: '%env(bool:PROVIDER_STRUCDATA_ENABLE)%'
+            $enable: '%env(bool:PROVIDER_STRUCDATA_ENABLED)%'
             $trusted_domains: '%env(string:PROVIDER_STRUCDATA_TRUSTED_DOMAINS)%'
             $add_gtin_to_orderno: '%env(bool:PROVIDER_STRUCDATA_ADD_GTIN_TO_ORDERNO)%'
 
     App\Services\InfoProviderSystem\Providers\PollinProvider:
         arguments:
-            $enable: '%env(bool:PROVIDER_POLLIN_ENABLE)%'
+            $enable: '%env(bool:PROVIDER_POLLIN_ENABLED)%'
             $store_id: '%env(string:PROVIDER_POLLIN_STORE_ID)%'
             $search_limit: '%env(int:PROVIDER_POLLIN_SEARCH_LIMIT)%'
             $add_gtin_to_orderno: '%env(bool:PROVIDER_POLLIN_ADD_GTIN_TO_ORDERNO)%'
 
     App\Services\InfoProviderSystem\Providers\ReicheltProvider:
         arguments:
-            $enable: '%env(bool:PROVIDER_REICHELT_ENABLE)%'
+            $enable: '%env(bool:PROVIDER_REICHELT_ENABLED)%'
             $lang: '%env(string:PROVIDER_REICHELT_LANGUAGE)%'
             $country: '%env(string:PROVIDER_REICHELT_COUNTRY)%'
             $currency: '%env(string:PROVIDER_REICHELT_CURRENCY)%'

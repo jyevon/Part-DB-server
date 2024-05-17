@@ -34,7 +34,7 @@ class PollinProvider extends StructuredDataProvider
             'name' => 'Pollin',
             'description' => 'This provider scrapes Pollin online shop to search for parts.',
             'url' => 'https://www.pollin.de/',
-            'disabled_help' => 'Set the PROVIDER_POLLIN_ENABLE env option.'
+            'disabled_help' => 'Set the PROVIDER_POLLIN_ENABLED env option to 1 (or true).'
         ];
     }
 
@@ -55,7 +55,7 @@ class PollinProvider extends StructuredDataProvider
 
     public function isActive(): bool
     {
-        return !empty($this->enable);
+        return $this->enable;
     }
     
     /**

@@ -38,7 +38,7 @@ class ReicheltProvider extends StructuredDataProvider
             'name' => 'Reichelt',
             'description' => 'This provider scrapes Reichelt online shop to search for parts.',
             'url' => self::BASE_URL,
-            'disabled_help' => 'Set the PROVIDER_REICHELT_ENABLE env option.'
+            'disabled_help' => 'Set the PROVIDER_REICHELT_ENABLED env option to 1 (or true).'
         ];
     }
 
@@ -60,7 +60,7 @@ class ReicheltProvider extends StructuredDataProvider
 
     public function isActive(): bool
     {
-        return !empty($this->enable);
+        return $this->enable;
     }
 
     /**

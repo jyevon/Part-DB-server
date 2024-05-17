@@ -230,10 +230,9 @@ information with [BreadcrumbList](https://schema.org/BreadcrumbList), [WebSite](
 URL into [Schema.org's validator](https://validator.schema.org/). Try, for instance:
 * `https://www.voelkner.de/products/142706`
 * `https://www.ebay.com/itm/185851714840`
-* `https://www.lcsc.com/product-detail/Light-Emitting-Diodes-LED_Worldsemi-WS2812D-F5_C190565.html`
 
 Following env configuration options are available:
-* `PROVIDER_STRUCDATA_ENABLE`: Set to `1` to enable this provider (mandatory, default: `0`)
+* `PROVIDER_STRUCDATA_ENABLED`: Set this to `1` to enable the structured data provider
 * `PROVIDER_STRUCDATA_TRUSTED_DOMAINS`: Set a filter (RegEx) for URLs that can be called (strongly recommended!,
   default: `0`)
 * `PROVIDER_STRUCDATA_ADD_GTIN_TO_ORDERNO`: If this is set to `1` and a GTIN (aka EAN) was found, it is appended to the
@@ -246,7 +245,7 @@ shopping information from [Pollin](https://www.pollin.de/) since there exists no
 on extracting data from HTML, but can still get disrupted by any future change to their website.
 
 Following env configuration options are available:
-* `PROVIDER_POLLIN_ENABLE`: Set to `1` to enable this provider (mandatory, default: `0`)
+* `PROVIDER_POLLIN_ENABLED`: Set this to `1` to enable the Pollin provider
 * `PROVIDER_POLLIN_SEARCH_LIMIT`: The maximum number of results to return per search (optional, default: `12`).
   The loading time increases drastically with higher numbers because, currently, the product page of every result is called!
 * `PROVIDER_POLLIN_STORE_ID`: The store domain you want to use, e.g. `pollin.de` or `pollin.at`.
@@ -262,7 +261,7 @@ shopping information from [Reichelt](https://www.reichelt.com/) since there exis
 possible on extracting data from HTML, but can still get disrupted by any future change to their website.
 
 Following env configuration options are available:
-* `PROVIDER_REICHELT_ENABLE`: Set to `1` to enable this provider (mandatory, default: `0`)
+* `PROVIDER_REICHELT_ENABLED`: Set this to `1` to enable the Reichelt provider
 * `PROVIDER_REICHELT_LANGUAGE`: The language you want to get results in (`DE`, `EN`, `FR`, `PL`, `NL` and `IT`)
   (optional, default: `EN`)
 * `PROVIDER_REICHELT_COUNTRY`: The country you want to get results for (codes see below) (optional,
